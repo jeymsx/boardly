@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { RotateCcw, Plus, Trash2, Sun, Moon, User, Tag } from 'lucide-react';
+import { RotateCcw, Plus, Trash2, Sun, Moon, User, Tag, CloudUpload, CloudOff, Loader2 } from 'lucide-react';
 import { v4 as uuid } from 'uuid';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useThemeStore } from '../store/useThemeStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { AuthModal } from '../components/AuthModal';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -59,7 +61,9 @@ const NumberInput: React.FC<{ value: number; onChange: (v: number) => void; min:
 export const Settings: React.FC = () => {
   const { settings, updateSettings, resetSettings } = useSettingsStore();
   const { theme, toggleTheme } = useThemeStore();
+  const { user, signOut, syncing } = useAuthStore();
   const [resetModal,   setResetModal]   = useState(false);
+  const [authModal,    setAuthModal]    = useState(false);
   const [newInterval,  setNewInterval]  = useState('');
 
   const examDates: ExamDate[] = settings.examDates ?? [];
@@ -90,6 +94,67 @@ export const Settings: React.FC = () => {
   return (
     <div className="p-4 lg:p-6 max-w-2xl mx-auto animate-fade-in">
       <PageHeader title="Settings" subtitle="Configure default values and behaviors" />
+
+      {/* Account / Sync */}
+      <Section
+        title="Account"
+        description={user ? 'Your data syncs automatically in the background' : 'Sign in to back up and sync across devices'}
+      >
+        {user ? (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/15
+                border border-emerald-200 dark:border-emerald-500/25
+                flex items-center justify-center shrink-0">
+                {syncing
+                  ? <Loader2 size={14} className="text-emerald-600 dark:text-emerald-400 animate-spin" />
+                  : <CloudUpload size={14} className="text-emerald-600 dark:text-emerald-400" />}
+              </div>
+              <div>
+                <p className="text-sm font-body font-medium text-slate-700 dark:text-slate-300 truncate max-w-[180px]">
+                  {user.email}
+                </p>
+                <p className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
+                  {syncing ? 'Syncing…' : 'Sync enabled'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => signOut()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono font-medium
+                border-slate-200 dark:border-ink-600/60 text-slate-500 dark:text-slate-400
+                hover:border-rose-300 dark:hover:border-rose-500/40
+                hover:text-rose-600 dark:hover:text-rose-400
+                hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
+            >
+              <CloudOff size={12} /> Sign Out
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-ink-700/60
+                border border-slate-200 dark:border-ink-600/40
+                flex items-center justify-center shrink-0">
+                <CloudOff size={14} className="text-slate-400 dark:text-slate-500" />
+              </div>
+              <p className="text-sm font-body text-slate-400 dark:text-slate-500">
+                Offline — data stored locally
+              </p>
+            </div>
+            <button
+              onClick={() => setAuthModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                bg-emerald-500 hover:bg-emerald-600 active:scale-95
+                text-white text-xs font-mono font-semibold transition-all"
+            >
+              <CloudUpload size={12} /> Sign In
+            </button>
+          </div>
+        )}
+      </Section>
+
+      {authModal && <AuthModal onClose={() => setAuthModal(false)} />}
 
       {/* Profile */}
       <Section title="Profile" description="Your name and the exam you're preparing for">

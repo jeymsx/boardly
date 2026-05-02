@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { storage } from '../utils/storage';
+import { scheduleSessionsSync } from '../lib/sync';
 import {
   type Session, type ReviewEntry, type AttendanceStatus,
   type ReadStatus, type WeeklyScore,
@@ -31,6 +32,7 @@ interface SessionsStore {
   regenerateReviews: (sessionId: string, intervals: number[]) => void;
 
   addWeeklyScore:    (sessionId: string, params: { score: number; maxScore: number; notes?: string; link?: string }) => void;
+  updateWeeklyScore: (sessionId: string, scoreId: string, patch: { score?: number; maxScore?: number; link?: string }) => void;
   deleteWeeklyScore: (sessionId: string, scoreId: string) => void;
   updateWeeklyTest:  (sessionId: string, patch: { link?: string }) => void;
 }
@@ -50,7 +52,7 @@ function persist(sessions: Session[]) {
   storage.set('sessions', sessions);
 }
 
-export const useSessionsStore = create<SessionsStore>((set) => ({
+export const useSessionsStore = create<SessionsStore>((set, get) => ({
   sessions: storage.get<Session[]>('sessions', []),
 
   addSession: ({ date, subjectId, topicLabel, totalReviews, reviewIntervals, autoGenerate, notesLink }) => {
@@ -71,42 +73,49 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
       persist(sessions);
       return { sessions };
     });
+    scheduleSessionsSync(get().sessions);
     return session;
   },
 
-  updateSession: (id, patch) =>
+  updateSession: (id, patch) => {
     set(state => {
       const sessions = state.sessions.map(s => s.id === id ? { ...s, ...patch } : s);
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  deleteSession: (id) =>
+  deleteSession: (id) => {
     set(state => {
       const sessions = state.sessions.filter(s => s.id !== id);
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  cycleAttendance: (id) =>
+  cycleAttendance: (id) => {
     set(state => {
       const sessions = state.sessions.map(s => {
         if (s.id !== id) return s;
-        const cur = ATTENDANCE_STATUS_ORDER.indexOf(s.attendanceStatus);
+        const cur  = ATTENDANCE_STATUS_ORDER.indexOf(s.attendanceStatus);
         const next = ATTENDANCE_STATUS_ORDER[(cur + 1) % ATTENDANCE_STATUS_ORDER.length];
         return { ...s, attendanceStatus: next as AttendanceStatus };
       });
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  cycleReviewStatus: (sessionId, reviewIndex) =>
+  cycleReviewStatus: (sessionId, reviewIndex) => {
     set(state => {
       const sessions = state.sessions.map(s => {
         if (s.id !== sessionId) return s;
         const reviews = s.reviews.map((r, i) => {
           if (i !== reviewIndex) return r;
-          const cur = READ_STATUS_ORDER.indexOf(r.status);
+          const cur  = READ_STATUS_ORDER.indexOf(r.status);
           const next = READ_STATUS_ORDER[(cur + 1) % READ_STATUS_ORDER.length];
           return {
             ...r,
@@ -118,9 +127,11 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
       });
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  toggleReviewDate: (sessionId, reviewIndex, sessionDate, intervals) =>
+  toggleReviewDate: (sessionId, reviewIndex, sessionDate, intervals) => {
     set(state => {
       const sessions = state.sessions.map(s => {
         if (s.id !== sessionId) return s;
@@ -138,9 +149,11 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
       });
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  setReviewDate: (sessionId, reviewIndex, date) =>
+  setReviewDate: (sessionId, reviewIndex, date) => {
     set(state => {
       const sessions = state.sessions.map(s => {
         if (s.id !== sessionId) return s;
@@ -151,45 +164,63 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
       });
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  regenerateReviews: (sessionId, intervals) =>
+  regenerateReviews: (sessionId, intervals) => {
     set(state => {
       const sessions = state.sessions.map(s => {
         if (s.id !== sessionId) return s;
-        const dates = generateReviewDates(s.date, intervals.slice(0, s.totalReviews));
+        const dates   = generateReviewDates(s.date, intervals.slice(0, s.totalReviews));
         const reviews = buildReviews(s.id, dates);
         return { ...s, reviews };
       });
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  addWeeklyScore: (sessionId, { score, maxScore, notes, link }) =>
+  addWeeklyScore: (sessionId, { score, maxScore, notes, link }) => {
     set(state => {
       const sessions = state.sessions.map(s => {
         if (s.id !== sessionId) return s;
-        const wt = s.weeklyTest ?? { scores: [] };
+        const wt    = s.weeklyTest ?? { scores: [] };
         const entry: WeeklyScore = {
           id: uuid(),
           attemptNumber: wt.scores.length + 1,
-          score,
-          maxScore,
+          score, maxScore,
           date: new Date().toISOString(),
-          notes,
-          link,
+          notes, link,
         };
         return { ...s, weeklyTest: { ...wt, scores: [...wt.scores, entry] } };
       });
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  deleteWeeklyScore: (sessionId, scoreId) =>
+  updateWeeklyScore: (sessionId, scoreId, patch) => {
     set(state => {
       const sessions = state.sessions.map(s => {
         if (s.id !== sessionId) return s;
-        const wt = s.weeklyTest ?? { scores: [] };
+        const wt     = s.weeklyTest ?? { scores: [] };
+        const scores = wt.scores.map(sc => sc.id === scoreId ? { ...sc, ...patch } : sc);
+        return { ...s, weeklyTest: { ...wt, scores } };
+      });
+      persist(sessions);
+      return { sessions };
+    });
+    scheduleSessionsSync(get().sessions);
+  },
+
+  deleteWeeklyScore: (sessionId, scoreId) => {
+    set(state => {
+      const sessions = state.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        const wt     = s.weeklyTest ?? { scores: [] };
         const scores = wt.scores
           .filter(sc => sc.id !== scoreId)
           .map((sc, i) => ({ ...sc, attemptNumber: i + 1 }));
@@ -197,9 +228,11 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
       });
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 
-  updateWeeklyTest: (sessionId, patch) =>
+  updateWeeklyTest: (sessionId, patch) => {
     set(state => {
       const sessions = state.sessions.map(s => {
         if (s.id !== sessionId) return s;
@@ -208,5 +241,7 @@ export const useSessionsStore = create<SessionsStore>((set) => ({
       });
       persist(sessions);
       return { sessions };
-    }),
+    });
+    scheduleSessionsSync(get().sessions);
+  },
 }));

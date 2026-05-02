@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { storage } from '../utils/storage';
+import { scheduleSubjectsSync, scheduleTopicsSync } from '../lib/sync';
 import {
   type Subject, type Topic, type ReadEntry,
   type SubjectColor, type ReadStatus, READ_STATUS_ORDER,
@@ -16,9 +17,9 @@ interface SubjectsStore {
   deleteSubject: (id: string) => void;
 
   // Topics
-  addTopic:      (subjectId: string, name: string, totalReads: number) => Topic;
-  updateTopic:   (id: string, patch: Partial<Pick<Topic, 'name' | 'totalReads' | 'notes'>>) => void;
-  deleteTopic:   (id: string) => void;
+  addTopic:        (subjectId: string, name: string, totalReads: number) => Topic;
+  updateTopic:     (id: string, patch: Partial<Pick<Topic, 'name' | 'totalReads' | 'notes'>>) => void;
+  deleteTopic:     (id: string) => void;
   cycleReadStatus: (topicId: string, readIndex: number) => void;
   resetTopicReads: (topicId: string) => void;
 }
@@ -39,7 +40,7 @@ function persist(subjects: Subject[], topics: Topic[]) {
   storage.set('topics', topics);
 }
 
-export const useSubjectsStore = create<SubjectsStore>((set) => ({
+export const useSubjectsStore = create<SubjectsStore>((set, get) => ({
   subjects: storage.get<Subject[]>('subjects', []),
   topics:   storage.get<Topic[]>('topics', []),
 
@@ -52,23 +53,29 @@ export const useSubjectsStore = create<SubjectsStore>((set) => ({
       persist(subjects, state.topics);
       return { subjects };
     });
+    scheduleSubjectsSync(get().subjects);
     return subject;
   },
 
-  updateSubject: (id, patch) =>
+  updateSubject: (id, patch) => {
     set(state => {
       const subjects = state.subjects.map(s => s.id === id ? { ...s, ...patch } : s);
       persist(subjects, state.topics);
       return { subjects };
-    }),
+    });
+    scheduleSubjectsSync(get().subjects);
+  },
 
-  deleteSubject: (id) =>
+  deleteSubject: (id) => {
     set(state => {
       const subjects = state.subjects.filter(s => s.id !== id);
       const topics   = state.topics.filter(t => t.subjectId !== id);
       persist(subjects, topics);
       return { subjects, topics };
-    }),
+    });
+    scheduleSubjectsSync(get().subjects);
+    scheduleTopicsSync(get().topics);
+  },
 
   addTopic: (subjectId, name, totalReads) => {
     const topic: Topic = {
@@ -84,10 +91,11 @@ export const useSubjectsStore = create<SubjectsStore>((set) => ({
       persist(subjects, topics);
       return { subjects, topics };
     });
+    scheduleTopicsSync(get().topics);
     return topic;
   },
 
-  updateTopic: (id, patch) =>
+  updateTopic: (id, patch) => {
     set(state => {
       const topics = state.topics.map(t => {
         if (t.id !== id) return t;
@@ -99,9 +107,11 @@ export const useSubjectsStore = create<SubjectsStore>((set) => ({
       });
       persist(state.subjects, topics);
       return { topics };
-    }),
+    });
+    scheduleTopicsSync(get().topics);
+  },
 
-  deleteTopic: (id) =>
+  deleteTopic: (id) => {
     set(state => {
       const topic    = state.topics.find(t => t.id === id);
       const topics   = state.topics.filter(t => t.id !== id);
@@ -114,15 +124,17 @@ export const useSubjectsStore = create<SubjectsStore>((set) => ({
         : state.subjects;
       persist(subjects, topics);
       return { subjects, topics };
-    }),
+    });
+    scheduleTopicsSync(get().topics);
+  },
 
-  cycleReadStatus: (topicId, readIndex) =>
+  cycleReadStatus: (topicId, readIndex) => {
     set(state => {
       const topics = state.topics.map(t => {
         if (t.id !== topicId) return t;
         const reads = t.reads.map((r, i) => {
           if (i !== readIndex) return r;
-          const cur = READ_STATUS_ORDER.indexOf(r.status);
+          const cur  = READ_STATUS_ORDER.indexOf(r.status);
           const next = READ_STATUS_ORDER[(cur + 1) % READ_STATUS_ORDER.length];
           return {
             ...r,
@@ -134,9 +146,11 @@ export const useSubjectsStore = create<SubjectsStore>((set) => ({
       });
       persist(state.subjects, topics);
       return { topics };
-    }),
+    });
+    scheduleTopicsSync(get().topics);
+  },
 
-  resetTopicReads: (topicId) =>
+  resetTopicReads: (topicId) => {
     set(state => {
       const topics = state.topics.map(t =>
         t.id === topicId
@@ -145,7 +159,9 @@ export const useSubjectsStore = create<SubjectsStore>((set) => ({
       );
       persist(state.subjects, topics);
       return { topics };
-    }),
+    });
+    scheduleTopicsSync(get().topics);
+  },
 }));
 
 export function getTopicsForSubject(topics: Topic[], subjectId: string): Topic[] {

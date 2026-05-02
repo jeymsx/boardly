@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavStore } from './store/useNavStore';
 import { useThemeStore } from './store/useThemeStore';
 import { useSettingsStore } from './store/useSettingsStore';
+import { useAuthStore } from './store/useAuthStore';
 import { Sidebar } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
 import { Dashboard } from './pages/Dashboard';
@@ -23,11 +24,15 @@ export default function App() {
   const { page } = useNavStore();
   useThemeStore(); // ensure store is initialized (applies dark class on load)
   const { settings } = useSettingsStore();
+  const { initialize } = useAuthStore();
   const PageComponent = PAGE_MAP[page];
   const labels = { ...DEFAULT_PAGE_LABELS, ...settings.pageLabels };
   const [showOnboarding, setShowOnboarding] = useState(
     () => localStorage.getItem('boardly:onboarded') !== 'true',
   );
+
+  // Initialize Supabase auth on mount — starts session check + onAuthStateChange listener.
+  useEffect(() => { initialize(); }, [initialize]);
 
   if (showOnboarding) {
     return <Onboarding onComplete={() => setShowOnboarding(false)} />;

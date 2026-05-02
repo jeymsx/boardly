@@ -4,6 +4,7 @@ import { useSubjectsStore } from '../store/useSubjectsStore';
 import { topicProgress, pctNum } from '../utils/progress';
 import { ProgressBar } from './ui/ProgressBar';
 import { StatusBadge } from './ui/Badge';
+import { COLOR_MAP } from '../types';
 import type { Topic, Subject, ReadStatus } from '../types';
 
 const READ_STATUS_ICONS: Record<ReadStatus, string> = {
@@ -34,44 +35,45 @@ interface Props {
 export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete }) => {
   const { cycleReadStatus, resetTopicReads } = useSubjectsStore();
   const [expanded, setExpanded] = useState(false);
-  const progress   = topicProgress(topic);
-  const isComplete = progress === 1 && topic.reads.length > 0;
-  const colorClass = BORDER_LEFT[subject.color] ?? 'border-l-emerald-500';
+  const progress    = topicProgress(topic);
+  const isComplete  = progress === 1 && topic.reads.length > 0;
+  const colorClass  = BORDER_LEFT[subject.color] ?? 'border-l-emerald-500';
+  const colors      = COLOR_MAP[subject.color];
 
   return (
-    <div className={`bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
-      border-l-2 ${colorClass} rounded-xl transition-all
-      hover:border-slate-300 dark:hover:border-ink-600/70 animate-fade-in shadow-card dark:shadow-none
+    <div className={`border border-l-2 ${colorClass} ${colors.border} rounded-xl transition-all
+      animate-fade-in shadow-card dark:shadow-none overflow-hidden
       ${isComplete ? 'opacity-60' : ''}`}
     >
-      <div className="px-4 pt-3.5 pb-3">
+      {/* Colored header */}
+      <div className={`px-4 pt-3.5 pb-3 ${colors.bg}`}>
         <div className="flex items-start justify-between gap-2 mb-2.5">
           <button
             onClick={() => setExpanded(v => !v)}
             className="flex items-center gap-2 text-left group flex-1 min-w-0"
           >
-            <span className="font-body font-medium text-slate-800 dark:text-slate-200 text-sm leading-tight truncate
-              group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+            <span className={`font-body font-medium text-sm leading-tight truncate
+              ${colors.text} group-hover:opacity-90 transition-opacity`}>
               {topic.name}
             </span>
             {isComplete && (
               <span className="shrink-0 text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400
                 bg-emerald-100 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/30
                 rounded-full px-2 py-0.5">
-                Completed
+                Done
               </span>
             )}
-            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 shrink-0 tabular-nums">
+            <span className={`text-[10px] font-mono shrink-0 tabular-nums opacity-70 ${colors.text}`}>
               {pctNum(progress)}%
             </span>
-            <span className="text-slate-400 dark:text-slate-600 shrink-0">
+            <span className="text-slate-400 dark:text-slate-500 shrink-0">
               {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </span>
           </button>
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => onEdit(topic)}
-              className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-ink-700/40 hover:bg-slate-200 dark:hover:bg-ink-600
+              className="w-7 h-7 rounded-lg hover:bg-white/40 dark:hover:bg-ink-700/60
                 flex items-center justify-center text-slate-400 dark:text-slate-500
                 hover:text-slate-600 dark:hover:text-slate-300 transition-all active:scale-90"
             >
@@ -79,7 +81,7 @@ export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete })
             </button>
             <button
               onClick={() => onDelete(topic.id)}
-              className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-ink-700/40 hover:bg-rose-50 dark:hover:bg-rose-500/20
+              className="w-7 h-7 rounded-lg hover:bg-rose-100/60 dark:hover:bg-rose-500/20
                 flex items-center justify-center text-slate-400 dark:text-slate-500
                 hover:text-rose-500 dark:hover:text-rose-400 transition-all active:scale-90"
             >
@@ -108,9 +110,9 @@ export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete })
           <button
             onClick={() => resetTopicReads(topic.id)}
             title="Reset all reads"
-            className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-ink-700/40 hover:bg-slate-200 dark:hover:bg-ink-600
-              flex items-center justify-center text-slate-400 dark:text-slate-600
-              hover:text-slate-500 dark:hover:text-slate-400 transition-all active:scale-90 ml-auto"
+            className="w-6 h-6 rounded-lg hover:bg-white/50 dark:hover:bg-ink-700/40
+              flex items-center justify-center text-slate-400 dark:text-slate-500
+              hover:text-slate-600 dark:hover:text-slate-400 transition-all active:scale-90 ml-auto"
           >
             <RotateCcw size={11} />
           </button>
@@ -120,7 +122,8 @@ export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete })
       </div>
 
       {expanded && topic.notes && (
-        <div className="px-4 pb-3 border-t border-slate-100 dark:border-ink-700/40 pt-2.5">
+        <div className="px-4 pb-3 border-t border-slate-100 dark:border-ink-700/40 pt-2.5
+          bg-white dark:bg-ink-800/60">
           <div className="flex items-start gap-1.5 text-xs text-slate-400 dark:text-slate-500">
             <StickyNote size={12} className="mt-0.5 shrink-0" />
             <p className="leading-relaxed">{topic.notes}</p>
@@ -129,7 +132,7 @@ export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete })
       )}
 
       {expanded && (
-        <div className="px-4 pb-3 pt-1">
+        <div className="px-4 pb-3 pt-1 bg-white dark:bg-ink-800/60">
           <div className="grid grid-cols-3 gap-1.5">
             {topic.reads.map(read => (
               <div key={read.id}

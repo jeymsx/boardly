@@ -7,12 +7,14 @@ import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSessionsStore } from '../store/useSessionsStore';
 import { useTestsStore } from '../store/useTestsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { useEventsStore } from '../store/useEventsStore';
 import { useNavStore } from '../store/useNavStore';
 import { overallProgress, subjectProgress, pctNum } from '../utils/progress';
 import { highestScore, latestScore } from '../utils/scores';
 import { upcomingEvents, formatDay, isToday, daysUntil } from '../utils/dates';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { COLOR_MAP } from '../types';
+import type { AttendanceStatus } from '../types';
 
 // ─── Greeting helpers ─────────────────────────────────────────────────────────
 
@@ -57,6 +59,40 @@ function getDailyQuote(): string {
   return QUOTES[dayOfYear % QUOTES.length];
 }
 
+// ─── Attendance badge ─────────────────────────────────────────────────────────
+
+const AttendanceBadge: React.FC<{ status: AttendanceStatus; isToday: boolean }> = ({ status, isToday: todayFlag }) => {
+  if (status === 'attended') {
+    return (
+      <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400
+        bg-emerald-100 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/25
+        rounded-full px-1.5 py-0.5">
+        Attended
+      </span>
+    );
+  }
+  if (status === 'partially-attended') {
+    return (
+      <span className="text-[10px] font-mono font-bold text-orange-700 dark:text-orange-400
+        bg-orange-100 dark:bg-orange-500/15 border border-orange-300 dark:border-orange-500/25
+        rounded-full px-1.5 py-0.5">
+        Partial
+      </span>
+    );
+  }
+  // pending
+  if (todayFlag) {
+    return (
+      <span className="text-[10px] font-mono font-bold text-sky-700 dark:text-sky-400
+        bg-sky-100 dark:bg-sky-500/15 border border-sky-300 dark:border-sky-500/25
+        rounded-full px-1.5 py-0.5">
+        TODAY
+      </span>
+    );
+  }
+  return null;
+};
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export const Dashboard: React.FC = () => {
@@ -64,6 +100,7 @@ export const Dashboard: React.FC = () => {
   const { sessions } = useSessionsStore();
   const { tests } = useTestsStore();
   const { settings } = useSettingsStore();
+  const { events } = useEventsStore();
   const { navigate } = useNavStore();
 
   const overall = overallProgress(subjects, topics, sessions, tests, settings.targetPassingScore);
@@ -82,10 +119,53 @@ export const Dashboard: React.FC = () => {
 
   const attendedSessions = sessions.filter(s => s.attendanceStatus === 'attended').length;
 
+  // Upcoming sessions + reviews with attendance status on sessions
   const upcomingAll = [
-    ...upcomingSessions.map(s => ({ type: 'session' as const, date: s.date, label: s.topicLabel, subjectId: s.subjectId, id: s.id })),
-    ...upcomingReviews.map(r => ({ type: 'review' as const, date: r.scheduledDate as string, label: `Review: ${r.sessionLabel}`, subjectId: r.subjectId, id: r.id })),
+    ...upcomingSessions.map(s => ({
+      type: 'session' as const,
+      date: s.date,
+      label: s.topicLabel,
+      subjectId: s.subjectId,
+      id: s.id,
+      attendanceStatus: s.attendanceStatus,
+    })),
+    ...upcomingReviews.map(r => ({
+      type: 'review' as const,
+      date: r.scheduledDate as string,
+      label: `Review: ${r.sessionLabel}`,
+      subjectId: r.subjectId,
+      id: r.id,
+      attendanceStatus: undefined,
+    })),
   ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+
+  // 7-day week summary grid
+  const weekDays = React.useMemo(() => {
+    const todayBase = new Date();
+    todayBase.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(todayBase);
+      d.setDate(d.getDate() + i);
+      const iso = [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+      ].join('-');
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const dayNum  = d.getDate();
+      const daySessions = sessions.filter(s => s.date === iso);
+      const dayReviews  = sessions.flatMap(s =>
+        s.reviews.filter(r =>
+          r.dateEnabled !== false &&
+          r.scheduledDate !== null &&
+          r.scheduledDate === iso &&
+          r.status !== 'done'
+        )
+      );
+      const dayEvents = events.filter(e => e.date === iso);
+      return { iso, dayName, dayNum, daySessions, dayReviews, dayEvents, isToday: i === 0 };
+    });
+  }, [sessions, events]);
 
   const examDates = settings.examDates ?? [];
 
@@ -168,10 +248,10 @@ export const Dashboard: React.FC = () => {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         {[
-          { label: 'Subjects',      value: subjects.length,                      icon: <BookOpen size={16} />,     color: 'emerald', onClick: () => navigate('subjects') },
-          { label: 'Topics Done',   value: `${doneTopics}/${totalTopics}`,       icon: <CheckCircle2 size={16} />, color: 'jade',    onClick: () => navigate('subjects') },
-          { label: 'Sessions',      value: `${attendedSessions}/${sessions.length}`, icon: <GraduationCap size={16} />, color: 'sky', onClick: () => navigate('sessions') },
-          { label: 'Tests Passed',  value: `${passedTests}/${totalTests}`,       icon: <FlaskConical size={16} />, color: 'violet',  onClick: () => navigate('tests')    },
+          { label: 'Subjects',     value: subjects.length,                          icon: <BookOpen size={16} />,      color: 'emerald', onClick: () => navigate('subjects') },
+          { label: 'Topics Done',  value: `${doneTopics}/${totalTopics}`,           icon: <CheckCircle2 size={16} />,  color: 'jade',    onClick: () => navigate('subjects') },
+          { label: 'Sessions',     value: `${attendedSessions}/${sessions.length}`, icon: <GraduationCap size={16} />, color: 'sky',     onClick: () => navigate('sessions') },
+          { label: 'Tests Passed', value: `${passedTests}/${totalTests}`,           icon: <FlaskConical size={16} />,  color: 'violet',  onClick: () => navigate('tests')    },
         ].map(stat => (
           <button
             key={stat.label}
@@ -244,7 +324,7 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Upcoming tasks */}
+        {/* Upcoming sessions + reviews */}
         <div className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
           rounded-xl overflow-hidden shadow-card dark:shadow-none">
           <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center justify-between">
@@ -265,8 +345,8 @@ export const Dashboard: React.FC = () => {
           ) : (
             <div className="px-4 py-3 flex flex-col gap-2">
               {upcomingAll.map(item => {
-                const subject = subjects.find(s => s.id === item.subjectId);
-                const colors  = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
+                const subject   = subjects.find(s => s.id === item.subjectId);
+                const colors    = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
                 const todayFlag = isToday(item.date);
                 return (
                   <div key={item.id + item.type}
@@ -284,9 +364,11 @@ export const Dashboard: React.FC = () => {
                       {subject && <p className={`text-[10px] ${colors.text} truncate`}>{subject.name}</p>}
                     </div>
                     <div className="text-right shrink-0">
-                      {todayFlag ? (
-                        <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400
-                          bg-emerald-100 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/25
+                      {item.type === 'session' && item.attendanceStatus ? (
+                        <AttendanceBadge status={item.attendanceStatus} isToday={todayFlag} />
+                      ) : todayFlag ? (
+                        <span className="text-[10px] font-mono font-bold text-sky-700 dark:text-sky-400
+                          bg-sky-100 dark:bg-sky-500/15 border border-sky-300 dark:border-sky-500/25
                           rounded-full px-1.5 py-0.5">TODAY</span>
                       ) : (
                         <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600">{formatDay(item.date)}</span>
@@ -299,10 +381,88 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
 
+        {/* 7-Day Week Summary */}
+        <div className="lg:col-span-2 bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
+          rounded-xl overflow-hidden shadow-card dark:shadow-none">
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200">This Week</h2>
+              <div className="flex items-center gap-2.5">
+                {[
+                  { color: 'bg-sky-400', label: 'Session' },
+                  { color: 'bg-emerald-400', label: 'Review' },
+                  { color: 'bg-violet-400', label: 'Event' },
+                ].map(({ color, label }) => (
+                  <span key={label} className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${color} inline-block`} />
+                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600">{label}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('calendar')}
+              className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400
+                hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+            >
+              Calendar <ChevronRight size={12} />
+            </button>
+          </div>
+          <div className="p-3 overflow-x-auto">
+            <div className="grid grid-cols-7 gap-2 min-w-[320px]">
+              {weekDays.map(({ iso, dayName, dayNum, daySessions, dayReviews, dayEvents, isToday: todayCard }) => {
+                const hasItems = daySessions.length > 0 || dayReviews.length > 0 || dayEvents.length > 0;
+                return (
+                  <div key={iso}
+                    className={`flex flex-col items-center rounded-xl py-3 px-1.5 gap-2 transition-all
+                      ${todayCard
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-2 border-emerald-400 dark:border-emerald-500/50'
+                        : 'bg-slate-50 dark:bg-ink-900/40 border border-slate-200 dark:border-ink-700/40'}`}
+                  >
+                    <span className={`text-[9px] font-mono font-semibold uppercase tracking-wider
+                      ${todayCard ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-600'}`}>
+                      {dayName}
+                    </span>
+                    <span className={`font-display font-bold text-base leading-none
+                      ${todayCard ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                      {dayNum}
+                    </span>
+                    <div className="flex flex-col items-center gap-1 w-full">
+                      {daySessions.length > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />
+                          <span className="text-[9px] font-mono text-sky-500 dark:text-sky-400">{daySessions.length}</span>
+                        </span>
+                      )}
+                      {dayReviews.length > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                          <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400">{dayReviews.length}</span>
+                        </span>
+                      )}
+                      {dayEvents.length > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
+                          <span className="text-[9px] font-mono text-violet-500 dark:text-violet-400">{dayEvents.length}</span>
+                        </span>
+                      )}
+                      {!hasItems && (
+                        <span className={`text-[11px] ${todayCard ? 'text-emerald-300 dark:text-emerald-600/50' : 'text-slate-300 dark:text-slate-700'}`}>
+                          —
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
         {/* Recent test scores */}
         {tests.length > 0 && (
-          <div className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
-            rounded-xl overflow-hidden lg:col-span-2 shadow-card dark:shadow-none">
+          <div className="lg:col-span-2 bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
+            rounded-xl overflow-hidden shadow-card dark:shadow-none">
             <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center justify-between">
               <h2 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200">Mastery Tests</h2>
               <button
@@ -313,8 +473,8 @@ export const Dashboard: React.FC = () => {
                 View all <ChevronRight size={12} />
               </button>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 p-3">
-              {tests.slice(0, 6).map(test => {
+            <div className="grid sm:grid-cols-2 gap-2 p-3">
+              {tests.slice(0, 4).map(test => {
                 const latest  = latestScore(test.scores);
                 const passed  = latest !== null && latest >= test.targetScore;
                 const subject = test.subjectEnabled !== false && test.subjectId

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Pencil, Trash2, ChevronDown, ChevronUp, CalendarCheck, RefreshCw,
-  ExternalLink, ToggleLeft, ToggleRight, Calendar, FlaskConical,
+  ExternalLink, ToggleLeft, ToggleRight, Calendar, FlaskConical, Check, X,
 } from 'lucide-react';
 import { useSessionsStore } from '../store/useSessionsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
@@ -29,8 +29,110 @@ interface WeeklyTestModalProps {
   onClose: () => void;
 }
 
+// ─── Editable weekly score row ────────────────────────────────────────────────
+
+interface WeeklyScoreRowProps { sc: WeeklyScore; sessionId: string }
+
+const WeeklyScoreRow: React.FC<WeeklyScoreRowProps> = ({ sc, sessionId }) => {
+  const { deleteWeeklyScore, updateWeeklyScore } = useSessionsStore();
+  const [editing,  setEditing]  = useState(false);
+  const [editVal,  setEditVal]  = useState(String(sc.score));
+  const [editMax,  setEditMax]  = useState(String(sc.maxScore));
+  const [editLink, setEditLink] = useState(sc.link ?? '');
+
+  const pct = (sc.score / sc.maxScore) * 100;
+
+  const handleSave = () => {
+    const s = parseFloat(editVal);
+    const m = parseFloat(editMax);
+    if (!isNaN(s) && !isNaN(m) && m > 0) {
+      updateWeeklyScore(sessionId, sc.id, { score: s, maxScore: m, link: editLink || undefined });
+    }
+    setEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditVal(String(sc.score)); setEditMax(String(sc.maxScore)); setEditLink(sc.link ?? '');
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-1.5 px-3 py-2.5 rounded-lg
+        bg-slate-50 dark:bg-ink-900/60 border border-emerald-300 dark:border-emerald-500/40">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-6 shrink-0">#{sc.attemptNumber}</span>
+          <input type="number" value={editVal} onChange={e => setEditVal(e.target.value)}
+            autoFocus
+            className="w-20 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
+              rounded-lg px-2 py-1 text-xs font-mono text-slate-800 dark:text-slate-200
+              focus:outline-none focus:ring-1 focus:ring-emerald-500/40" />
+          <span className="text-xs text-slate-400">/</span>
+          <input type="number" value={editMax} onChange={e => setEditMax(e.target.value)}
+            className="w-20 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
+              rounded-lg px-2 py-1 text-xs font-mono text-slate-800 dark:text-slate-200
+              focus:outline-none focus:ring-1 focus:ring-emerald-500/40" />
+          <div className="ml-auto flex gap-1">
+            <button onClick={handleSave}
+              className="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-500/20
+                flex items-center justify-center text-emerald-600 dark:text-emerald-400
+                hover:bg-emerald-200 dark:hover:bg-emerald-500/30 transition-colors">
+              <Check size={11} />
+            </button>
+            <button onClick={handleCancel}
+              className="w-6 h-6 rounded-md bg-slate-100 dark:bg-ink-700/60
+                flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+              <X size={11} />
+            </button>
+          </div>
+        </div>
+        <input type="url" value={editLink} onChange={e => setEditLink(e.target.value)}
+          placeholder="Link (optional)"
+          className="w-full bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
+            rounded-lg px-2 py-1 text-xs font-body text-slate-800 dark:text-slate-200
+            placeholder-slate-400 dark:placeholder-slate-600
+            focus:outline-none focus:ring-1 focus:ring-emerald-500/40" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 rounded-lg
+      bg-slate-50 dark:bg-ink-900/40 border border-slate-200 dark:border-ink-700/40">
+      <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-6 shrink-0">#{sc.attemptNumber}</span>
+      <div className="flex-1">
+        <ProgressBar value={pct / 100} size="xs" color="emerald" />
+      </div>
+      <span className="text-xs font-mono font-semibold tabular-nums w-12 text-right text-slate-700 dark:text-slate-300">
+        {pct.toFixed(1)}%
+      </span>
+      <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-14 text-right shrink-0">
+        {formatDate(sc.date, 'MMM d')}
+      </span>
+      {sc.link && (
+        <a href={sc.link} target="_blank" rel="noopener noreferrer"
+          className="text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors shrink-0">
+          <ExternalLink size={11} />
+        </a>
+      )}
+      <button onClick={() => { setEditVal(String(sc.score)); setEditMax(String(sc.maxScore)); setEditLink(sc.link ?? ''); setEditing(true); }}
+        className="w-5 h-5 rounded flex items-center justify-center
+          text-slate-300 dark:text-slate-700 hover:text-slate-500 dark:hover:text-slate-400 transition-colors">
+        <Pencil size={10} />
+      </button>
+      <button onClick={() => deleteWeeklyScore(sessionId, sc.id)}
+        className="w-5 h-5 rounded flex items-center justify-center
+          text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">
+        ×
+      </button>
+    </div>
+  );
+};
+
+// ─── Weekly Test Modal ────────────────────────────────────────────────────────
+
 const WeeklyTestModal: React.FC<WeeklyTestModalProps> = ({ session, open, onClose }) => {
-  const { addWeeklyScore, deleteWeeklyScore, updateWeeklyTest } = useSessionsStore();
+  const { addWeeklyScore, updateWeeklyTest } = useSessionsStore();
   const [score,    setScore]    = useState('');
   const [maxScore, setMaxScore] = useState('100');
   const [notes,    setNotes]    = useState('');
@@ -108,42 +210,9 @@ const WeeklyTestModal: React.FC<WeeklyTestModalProps> = ({ session, open, onClos
         {/* Score history */}
         {scores.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            {scores.map(sc => {
-              const pct = (sc.score / sc.maxScore) * 100;
-              return (
-                <div key={sc.id}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg
-                    bg-slate-50 dark:bg-ink-900/40 border border-slate-200 dark:border-ink-700/40"
-                >
-                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-6 shrink-0">
-                    #{sc.attemptNumber}
-                  </span>
-                  <div className="flex-1">
-                    <ProgressBar value={pct / 100} size="xs" color="emerald" />
-                  </div>
-                  <span className="text-xs font-mono font-semibold tabular-nums w-12 text-right text-slate-700 dark:text-slate-300">
-                    {pct.toFixed(1)}%
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-14 text-right shrink-0">
-                    {formatDate(sc.date, 'MMM d')}
-                  </span>
-                  {sc.link && (
-                    <a href={sc.link} target="_blank" rel="noopener noreferrer"
-                      className="text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors shrink-0"
-                    >
-                      <ExternalLink size={11} />
-                    </a>
-                  )}
-                  <button
-                    onClick={() => deleteWeeklyScore(session.id, sc.id)}
-                    className="w-5 h-5 rounded flex items-center justify-center shrink-0
-                      text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
+            {scores.map(sc => (
+              <WeeklyScoreRow key={sc.id} sc={sc} sessionId={session.id} />
+            ))}
           </div>
         )}
 

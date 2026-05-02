@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { storage } from '../utils/storage';
+import { scheduleEventsSync } from '../lib/sync';
 import type { CalendarEvent, SubjectColor } from '../types';
 
 interface EventsStore {
@@ -10,7 +11,7 @@ interface EventsStore {
   deleteEvent: (id: string) => void;
 }
 
-export const useEventsStore = create<EventsStore>((set) => ({
+export const useEventsStore = create<EventsStore>((set, get) => ({
   events: storage.get<CalendarEvent[]>('events', []),
 
   addEvent: (params) => {
@@ -29,20 +30,25 @@ export const useEventsStore = create<EventsStore>((set) => ({
       storage.set('events', events);
       return { events };
     });
+    scheduleEventsSync(get().events);
     return event;
   },
 
-  updateEvent: (id, patch) =>
+  updateEvent: (id, patch) => {
     set(state => {
       const events = state.events.map(e => e.id === id ? { ...e, ...patch } : e);
       storage.set('events', events);
       return { events };
-    }),
+    });
+    scheduleEventsSync(get().events);
+  },
 
-  deleteEvent: (id) =>
+  deleteEvent: (id) => {
     set(state => {
       const events = state.events.filter(e => e.id !== id);
       storage.set('events', events);
       return { events };
-    }),
+    });
+    scheduleEventsSync(get().events);
+  },
 }));

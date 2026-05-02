@@ -133,19 +133,16 @@ export const Calendar: React.FC = () => {
   const { events, addEvent, deleteEvent } = useEventsStore();
 
   const today = new Date();
-  const [current,    setCurrent]    = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selected,   setSelected]   = useState<string | null>(format(today, 'yyyy-MM-dd'));
-  const [eventModal, setEventModal] = useState(false);
+  const [current,     setCurrent]     = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selected,    setSelected]    = useState<string | null>(null);
+  const [dayModal,    setDayModal]    = useState(false);
+  const [eventModal,  setEventModal]  = useState(false);
 
   const calDays  = buildCalendarMonth(current.getFullYear(), current.getMonth(), sessions, events);
   const firstDow = getDay(startOfMonth(current));
   getDaysInMonth(current);
   const blanks   = Array.from({ length: firstDow });
 
-  const selectedDay      = selected ? calDays.find(d => d.date === selected) : null;
-  const selectedSessions = selectedDay?.sessions ?? [];
-  const selectedReviews  = selectedDay?.reviews  ?? [];
-  const selectedEvents   = selectedDay?.events   ?? [];
 
   const handleAddEvent = (form: EventForm) => {
     addEvent({
@@ -238,7 +235,7 @@ export const Calendar: React.FC = () => {
             return (
               <button
                 key={day.date}
-                onClick={() => setSelected(day.date)}
+                onClick={() => { setSelected(day.date); setDayModal(true); }}
                 className={`aspect-square flex flex-col items-center justify-center gap-0.5 relative
                   transition-all active:scale-95 rounded-lg m-0.5
                   ${isSelected
@@ -283,143 +280,142 @@ export const Calendar: React.FC = () => {
         </div>
       </div>
 
-      {/* Day details */}
-      {selected && (
-        <div className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
-          rounded-2xl overflow-hidden animate-slide-up shadow-card dark:shadow-none">
-          <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center justify-between">
-            <div>
-              <h3 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200">
-                {formatDate(selected, 'EEEE, MMMM d, yyyy')}
-              </h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-body mt-0.5">
-                {selectedSessions.length + selectedReviews.length + selectedEvents.length === 0
-                  ? 'No events this day'
-                  : [
-                      selectedSessions.length > 0 ? `${selectedSessions.length} session${selectedSessions.length !== 1 ? 's' : ''}` : '',
-                      selectedReviews.length > 0 ? `${selectedReviews.length} review${selectedReviews.length !== 1 ? 's' : ''}` : '',
-                      selectedEvents.length > 0 ? `${selectedEvents.length} event${selectedEvents.length !== 1 ? 's' : ''}` : '',
-                    ].filter(Boolean).join(', ')
-                }
-              </p>
-            </div>
-            <button
-              onClick={() => { setEventModal(true); }}
-              className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400
-                hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors font-body font-medium"
-            >
-              <Plus size={12} /> Add Event
-            </button>
-          </div>
+      {/* Day detail modal */}
+      <Modal
+        open={dayModal && selected !== null}
+        onClose={() => setDayModal(false)}
+        title={selected ? formatDate(selected, 'EEEE, MMMM d') : ''}
+        maxWidth="max-w-lg"
+      >
+        {selected && (() => {
+          const day      = calDays.find(d => d.date === selected);
+          const daySess  = day?.sessions ?? [];
+          const dayRevs  = day?.reviews  ?? [];
+          const dayEvts  = day?.events   ?? [];
+          const total    = daySess.length + dayRevs.length + dayEvts.length;
 
-          <div className="px-4 py-3 flex flex-col gap-2">
-            {selectedSessions.length === 0 && selectedReviews.length === 0 && selectedEvents.length === 0 && (
-              <p className="text-sm text-slate-400 dark:text-slate-600 py-4 text-center">Nothing scheduled</p>
-            )}
-
-            {selectedSessions.map(session => {
-              const subject = subjects.find(s => s.id === session.subjectId);
-              const colors  = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
-              return (
-                <div key={session.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${colors.border} ${colors.bg}`}
-                >
-                  <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-500/20 flex items-center justify-center shrink-0">
-                    <GraduationCap size={14} className="text-sky-500 dark:text-sky-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-body font-medium text-slate-800 dark:text-slate-200 truncate">
-                      {session.topicLabel}
-                    </p>
-                    {subject && <p className={`text-xs ${colors.text} truncate`}>{subject.name}</p>}
-                  </div>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border
-                    ${session.attendanceStatus === 'attended'
-                      ? 'text-emerald-700 dark:text-jade-400 bg-emerald-50 dark:bg-jade-500/15 border-emerald-200 dark:border-jade-500/30'
-                      : session.attendanceStatus === 'partially-attended'
-                      ? 'text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30'
-                      : 'text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-ink-700/60 border-slate-200 dark:border-ink-600/40'}`}
-                  >
-                    {session.attendanceStatus === 'attended' ? 'Attended' :
-                     session.attendanceStatus === 'partially-attended' ? 'Partial' : 'Pending'}
-                  </span>
-                </div>
-              );
-            })}
-
-            {selectedReviews.map(review => {
-              const session = sessions.find(s => s.id === review.sessionId);
-              const subject = session ? subjects.find(s => s.id === session.subjectId) : null;
-              const colors  = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
-              return (
-                <div key={review.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl
-                    border border-emerald-200 dark:border-emerald-500/20
-                    bg-emerald-50/60 dark:bg-emerald-500/5"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-500/20
-                    flex items-center justify-center shrink-0">
-                    <Clock size={14} className="text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-body font-medium text-slate-800 dark:text-slate-200 truncate">
-                      Review {review.reviewNumber}
-                    </p>
-                    {session && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{session.topicLabel}</p>}
-                    {subject && <p className={`text-[10px] ${colors.text} truncate`}>{subject.name}</p>}
-                  </div>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border
-                    ${review.status === 'done'
-                      ? 'text-emerald-700 dark:text-jade-400 bg-emerald-50 dark:bg-jade-500/15 border-emerald-200 dark:border-jade-500/30'
-                      : review.status === 'in-progress'
-                      ? 'text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30'
-                      : 'text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-ink-700/60 border-slate-200 dark:border-ink-600/40'}`}
-                  >
-                    {review.status === 'done' ? 'Done' : review.status === 'in-progress' ? 'Active' : 'Pending'}
-                  </span>
-                </div>
-              );
-            })}
-
-            {/* Custom Events */}
-            {selectedEvents.length > 0 && (
-              <div className="mt-1">
-                <p className="text-xs font-body font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                  <CalendarDays size={11} /> Custom Events
+          return (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between -mt-1 mb-1">
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-body">
+                  {total === 0
+                    ? 'Nothing scheduled'
+                    : [
+                        daySess.length > 0 ? `${daySess.length} session${daySess.length !== 1 ? 's' : ''}` : '',
+                        dayRevs.length > 0 ? `${dayRevs.length} review${dayRevs.length !== 1 ? 's' : ''}` : '',
+                        dayEvts.length > 0 ? `${dayEvts.length} event${dayEvts.length !== 1 ? 's' : ''}` : '',
+                      ].filter(Boolean).join(', ')
+                  }
                 </p>
-                {selectedEvents.map(event => {
-                  const subject = event.subjectId ? subjects.find(s => s.id === event.subjectId) : null;
-                  const eventColor = event.color ? COLOR_MAP[event.color] : COLOR_MAP.violet;
-                  return (
-                    <div key={event.id}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${eventColor.border} ${eventColor.bg} mb-1`}
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-500/20 flex items-center justify-center shrink-0">
-                        <CalendarDays size={14} className="text-violet-600 dark:text-violet-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-body font-medium text-slate-800 dark:text-slate-200 truncate">
-                          {event.title}
-                        </p>
-                        {event.topicLabel && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{event.topicLabel}</p>}
-                        {subject && <p className={`text-[10px] ${eventColor.text} truncate`}>{subject.name}</p>}
-                        {event.notes && <p className="text-[10px] text-slate-400 dark:text-slate-600 truncate italic">{event.notes}</p>}
-                      </div>
-                      <button
-                        onClick={() => deleteEvent(event.id)}
-                        className="w-6 h-6 rounded flex items-center justify-center
-                          text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  );
-                })}
+                <button
+                  onClick={() => setEventModal(true)}
+                  className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400
+                    hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors font-body font-medium"
+                >
+                  <Plus size={12} /> Add Event
+                </button>
               </div>
-            )}
-          </div>
-        </div>
-      )}
+
+              {total === 0 && (
+                <p className="text-sm text-slate-400 dark:text-slate-600 py-4 text-center">Nothing scheduled for this day.</p>
+              )}
+
+              {daySess.map(session => {
+                const subject = subjects.find(s => s.id === session.subjectId);
+                const colors  = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
+                return (
+                  <div key={session.id}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${colors.border} ${colors.bg}`}
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-500/20 flex items-center justify-center shrink-0">
+                      <GraduationCap size={14} className="text-sky-500 dark:text-sky-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-body font-medium text-slate-800 dark:text-slate-200 truncate">{session.topicLabel}</p>
+                      {subject && <p className={`text-xs ${colors.text} truncate`}>{subject.name}</p>}
+                    </div>
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border
+                      ${session.attendanceStatus === 'attended'
+                        ? 'text-emerald-700 dark:text-jade-400 bg-emerald-50 dark:bg-jade-500/15 border-emerald-200 dark:border-jade-500/30'
+                        : session.attendanceStatus === 'partially-attended'
+                        ? 'text-orange-600 dark:text-orange-300 bg-orange-50 dark:bg-orange-500/15 border-orange-200 dark:border-orange-500/30'
+                        : 'text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-ink-700/60 border-slate-200 dark:border-ink-600/40'}`}
+                    >
+                      {session.attendanceStatus === 'attended' ? 'Attended' :
+                       session.attendanceStatus === 'partially-attended' ? 'Partial' : 'Pending'}
+                    </span>
+                  </div>
+                );
+              })}
+
+              {dayRevs.map(review => {
+                const session = sessions.find(s => s.id === review.sessionId);
+                const subject = session ? subjects.find(s => s.id === session.subjectId) : null;
+                const colors  = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
+                return (
+                  <div key={review.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl
+                      border border-emerald-200 dark:border-emerald-500/20
+                      bg-emerald-50/60 dark:bg-emerald-500/5"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center shrink-0">
+                      <Clock size={14} className="text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-body font-medium text-slate-800 dark:text-slate-200 truncate">Review {review.reviewNumber}</p>
+                      {session && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{session.topicLabel}</p>}
+                      {subject && <p className={`text-[10px] ${colors.text} truncate`}>{subject.name}</p>}
+                    </div>
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border
+                      ${review.status === 'done'
+                        ? 'text-emerald-700 dark:text-jade-400 bg-emerald-50 dark:bg-jade-500/15 border-emerald-200 dark:border-jade-500/30'
+                        : review.status === 'in-progress'
+                        ? 'text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30'
+                        : 'text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-ink-700/60 border-slate-200 dark:border-ink-600/40'}`}
+                    >
+                      {review.status === 'done' ? 'Done' : review.status === 'in-progress' ? 'Active' : 'Pending'}
+                    </span>
+                  </div>
+                );
+              })}
+
+              {dayEvts.length > 0 && (
+                <>
+                  <p className="text-xs font-body font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1 mt-1">
+                    <CalendarDays size={11} /> Custom Events
+                  </p>
+                  {dayEvts.map(event => {
+                    const subject    = event.subjectId ? subjects.find(s => s.id === event.subjectId) : null;
+                    const eventColor = event.color ? COLOR_MAP[event.color] : COLOR_MAP.violet;
+                    return (
+                      <div key={event.id}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${eventColor.border} ${eventColor.bg}`}
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-500/20 flex items-center justify-center shrink-0">
+                          <CalendarDays size={14} className="text-violet-600 dark:text-violet-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-body font-medium text-slate-800 dark:text-slate-200 truncate">{event.title}</p>
+                          {event.topicLabel && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{event.topicLabel}</p>}
+                          {subject && <p className={`text-[10px] ${eventColor.text} truncate`}>{subject.name}</p>}
+                          {event.notes && <p className="text-[10px] text-slate-400 dark:text-slate-600 truncate italic">{event.notes}</p>}
+                        </div>
+                        <button
+                          onClick={() => deleteEvent(event.id)}
+                          className="w-6 h-6 rounded flex items-center justify-center
+                            text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          );
+        })()}
+      </Modal>
 
       <EventModal
         open={eventModal}
