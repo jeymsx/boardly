@@ -17,7 +17,7 @@ function applyTheme(theme: Theme) {
   }
 }
 
-const saved = storage.get<Theme>('theme', 'dark');
+const saved = storage.get<Theme>('theme', 'light');
 applyTheme(saved);
 
 export const useThemeStore = create<ThemeStore>((set) => ({
