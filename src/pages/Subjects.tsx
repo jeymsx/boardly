@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Plus, BookOpen } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, BookOpen, Search } from 'lucide-react';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { useToastStore } from '../store/useToastStore';
 import { SubjectCard } from '../components/SubjectCard';
 import { Modal } from '../components/ui/Modal';
 import { Input, Textarea } from '../components/ui/Input';
@@ -147,6 +148,10 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ open, label, onClose, onConfi
 export const Subjects: React.FC = () => {
   const { subjects, topics, addSubject, updateSubject, deleteSubject, addTopic, updateTopic, deleteTopic } = useSubjectsStore();
   const { settings } = useSettingsStore();
+  const { addToast } = useToastStore();
+
+  // Search
+  const [search, setSearch] = useState('');
 
   // Subject modal
   const [subjectModal, setSubjectModal] = useState(false);
@@ -161,6 +166,15 @@ export const Subjects: React.FC = () => {
   const [deleteModal,  setDeleteModal]  = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'subject' | 'topic'; id: string; label: string } | null>(null);
 
+  const q = search.toLowerCase().trim();
+  const filteredSubjects = useMemo(() => {
+    if (!q) return subjects;
+    return subjects.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      topics.some(t => t.subjectId === s.id && t.name.toLowerCase().includes(q))
+    );
+  }, [subjects, topics, q]);
+
   const openAddSubject  = () => { setEditingSubject(null); setSubjectModal(true); };
   const openEditSubject = (s: Subject) => { setEditingSubject(s); setSubjectModal(true); };
 
@@ -168,14 +182,14 @@ export const Subjects: React.FC = () => {
   const openEditTopic = (t: Topic)          => { setTopicSubjectId(t.subjectId); setEditingTopic(t); setTopicModal(true); };
 
   const handleSaveSubject = ({ name, color }: { name: string; color: SubjectColor }) => {
-    if (editingSubject) updateSubject(editingSubject.id, { name, color });
-    else addSubject(name, color);
+    if (editingSubject) { updateSubject(editingSubject.id, { name, color }); addToast('Subject updated'); }
+    else { addSubject(name, color); addToast('Subject added'); }
     setSubjectModal(false);
   };
 
   const handleSaveTopic = (subjectId: string, form: { name: string; totalReads: number; notes: string }) => {
-    if (editingTopic) updateTopic(editingTopic.id, { name: form.name, totalReads: form.totalReads, notes: form.notes });
-    else addTopic(subjectId, form.name, form.totalReads);
+    if (editingTopic) { updateTopic(editingTopic.id, { name: form.name, totalReads: form.totalReads, notes: form.notes }); addToast('Topic updated'); }
+    else { addTopic(subjectId, form.name, form.totalReads); addToast('Topic added'); }
     setTopicModal(false);
   };
 
@@ -186,14 +200,14 @@ export const Subjects: React.FC = () => {
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
-    if (deleteTarget.type === 'subject') deleteSubject(deleteTarget.id);
-    else deleteTopic(deleteTarget.id);
+    if (deleteTarget.type === 'subject') { deleteSubject(deleteTarget.id); addToast('Subject deleted', 'info'); }
+    else { deleteTopic(deleteTarget.id); addToast('Topic deleted', 'info'); }
     setDeleteModal(false);
     setDeleteTarget(null);
   };
 
   return (
-    <div className="p-4 lg:p-6 max-w-3xl mx-auto animate-fade-in">
+    <div className="p-4 lg:p-6 animate-fade-in">
       <PageHeader
         title="Subjects"
         subtitle={`${subjects.length} subject${subjects.length !== 1 ? 's' : ''} · ${topics.length} topic${topics.length !== 1 ? 's' : ''}`}
@@ -203,6 +217,23 @@ export const Subjects: React.FC = () => {
           </Button>
         }
       />
+
+      {/* Search */}
+      {subjects.length > 0 && (
+        <div className="relative mb-4">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search subjects or topics…"
+            className="w-full pl-8 pr-4 py-2 rounded-xl text-sm font-body
+              bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
+              text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600
+              focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all"
+          />
+        </div>
+      )}
 
       {subjects.length === 0 ? (
         <EmptyState
@@ -215,9 +246,15 @@ export const Subjects: React.FC = () => {
             </Button>
           }
         />
+      ) : filteredSubjects.length === 0 ? (
+        <EmptyState
+          icon={<Search size={24} />}
+          title="No results"
+          description={`No subjects or topics matching "${search}".`}
+        />
       ) : (
-        <div className="flex flex-col gap-4">
-          {subjects.map(subject => (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {filteredSubjects.map(subject => (
             <SubjectCard
               key={subject.id}
               subject={subject}

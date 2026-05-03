@@ -157,7 +157,7 @@ export const Calendar: React.FC = () => {
   };
 
   return (
-    <div className="p-4 lg:p-6 max-w-3xl mx-auto animate-fade-in">
+    <div className="p-4 lg:p-6 animate-fade-in">
       <PageHeader
         title="Calendar"
         subtitle="Sessions, reviews & custom events"
@@ -223,21 +223,26 @@ export const Calendar: React.FC = () => {
 
         {/* Grid */}
         <div className="grid grid-cols-7 p-1">
-          {blanks.map((_, i) => <div key={`blank-${i}`} className="aspect-square" />)}
+          {blanks.map((_, i) => <div key={`blank-${i}`} className="aspect-[3/4] sm:aspect-square lg:aspect-auto lg:h-24" />)}
 
           {calDays.map(day => {
-            const dayNum      = parseInt(day.date.split('-')[2]);
-            const isSelected  = day.date === selected;
-            const hasSessions = day.sessions.length > 0;
-            const hasReviews  = day.reviews.length > 0;
-            const hasEvents   = day.events.length > 0;
+            const dayNum     = parseInt(day.date.split('-')[2]);
+            const isSelected = day.date === selected;
+
+            const chips = [
+              ...day.sessions.map(s => ({ key: `s-${s.id}`, label: s.topicLabel, color: 'sky' as const })),
+              ...day.reviews.map(r => ({ key: `r-${r.id}`, label: `Rev ${r.reviewNumber}`, color: 'emerald' as const })),
+              ...day.events.map(e => ({ key: `e-${e.id}`, label: e.title, color: 'violet' as const })),
+            ];
+            const visibleChips = chips.slice(0, 2);
+            const extra = chips.length - visibleChips.length;
 
             return (
               <button
                 key={day.date}
                 onClick={() => { setSelected(day.date); setDayModal(true); }}
-                className={`aspect-square flex flex-col items-center justify-center gap-0.5 relative
-                  transition-all active:scale-95 rounded-lg m-0.5
+                className={`aspect-[3/4] sm:aspect-square lg:aspect-auto lg:h-24 flex flex-col overflow-hidden p-1 relative
+                  transition-all active:scale-95 rounded-lg m-0.5 text-left
                   ${isSelected
                     ? 'bg-emerald-500 text-white'
                     : day.isToday
@@ -247,20 +252,37 @@ export const Calendar: React.FC = () => {
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-ink-700/40'
                   }`}
               >
-                <span className="text-xs font-mono font-medium leading-none">{dayNum}</span>
-                {(hasSessions || hasReviews || hasEvents) && (
-                  <div className="flex gap-0.5">
-                    {hasSessions && (
-                      <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white/70' : 'bg-sky-400'}`} />
-                    )}
-                    {hasReviews && (
-                      <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white/70' : 'bg-emerald-400'}`} />
-                    )}
-                    {hasEvents && (
-                      <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white/70' : 'bg-violet-400'}`} />
-                    )}
-                  </div>
-                )}
+                <span className="text-[11px] font-mono font-medium leading-none mb-1 w-full text-center">
+                  {dayNum}
+                </span>
+                <div className="flex flex-col gap-0.5 w-full">
+                  {visibleChips.map(chip => (
+                    <span key={chip.key}
+                      className={`w-full flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-mono leading-tight overflow-hidden
+                        ${isSelected
+                          ? 'bg-white/20 text-white'
+                          : chip.color === 'sky'
+                          ? 'bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300'
+                          : chip.color === 'emerald'
+                          ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300'}`}
+                    >
+                      <span className={`w-1 h-1 rounded-full shrink-0
+                        ${isSelected ? 'bg-white/70'
+                          : chip.color === 'sky' ? 'bg-sky-400'
+                          : chip.color === 'emerald' ? 'bg-emerald-400'
+                          : 'bg-violet-400'}`}
+                      />
+                      <span className="truncate">{chip.label}</span>
+                    </span>
+                  ))}
+                  {extra > 0 && (
+                    <span className={`text-[8px] font-mono px-1 leading-tight
+                      ${isSelected ? 'text-white/60' : 'text-slate-400 dark:text-slate-500'}`}>
+                      +{extra} more
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}

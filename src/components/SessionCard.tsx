@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Pencil, Trash2, ChevronDown, ChevronUp, CalendarCheck, RefreshCw,
-  ExternalLink, ToggleLeft, ToggleRight, Calendar, FlaskConical, Check, X,
+  ExternalLink, ToggleLeft, ToggleRight, Calendar, FlaskConical, Trophy, Plus, Check, X,
 } from 'lucide-react';
 import { useSessionsStore } from '../store/useSessionsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { useToastStore } from '../store/useToastStore';
+import { ATTENDANCE_STATUS_ORDER, READ_STATUS_ORDER } from '../types';
 import { sessionProgress, pctNum } from '../utils/progress';
 import { averageScore, highestScore } from '../utils/scores';
 import { formatDate, isToday, isPast } from '../utils/dates';
@@ -21,26 +23,28 @@ const REVIEW_STATUS_COLORS: Record<string, string> = {
   'done':        'bg-emerald-50 dark:bg-jade-500/20 text-emerald-700 dark:text-jade-400 border-emerald-200 dark:border-jade-500/30',
 };
 
-// ─── Weekly Test Modal ────────────────────────────────────────────────────────
+// ─── Weekly Score Edit Modal ──────────────────────────────────────────────────
 
-interface WeeklyTestModalProps {
-  session: Session;
+interface WeeklyScoreEditModalProps {
+  sc: WeeklyScore;
+  sessionId: string;
   open: boolean;
   onClose: () => void;
 }
 
-// ─── Editable weekly score row ────────────────────────────────────────────────
-
-interface WeeklyScoreRowProps { sc: WeeklyScore; sessionId: string }
-
-const WeeklyScoreRow: React.FC<WeeklyScoreRowProps> = ({ sc, sessionId }) => {
-  const { deleteWeeklyScore, updateWeeklyScore } = useSessionsStore();
-  const [editing,  setEditing]  = useState(false);
+const WeeklyScoreEditModal: React.FC<WeeklyScoreEditModalProps> = ({ sc, sessionId, open, onClose }) => {
+  const { updateWeeklyScore } = useSessionsStore();
   const [editVal,  setEditVal]  = useState(String(sc.score));
   const [editMax,  setEditMax]  = useState(String(sc.maxScore));
   const [editLink, setEditLink] = useState(sc.link ?? '');
 
-  const pct = (sc.score / sc.maxScore) * 100;
+  useEffect(() => {
+    if (open) {
+      setEditVal(String(sc.score));
+      setEditMax(String(sc.maxScore));
+      setEditLink(sc.link ?? '');
+    }
+  }, [open, sc.score, sc.maxScore, sc.link]);
 
   const handleSave = () => {
     const s = parseFloat(editVal);
@@ -48,88 +52,153 @@ const WeeklyScoreRow: React.FC<WeeklyScoreRowProps> = ({ sc, sessionId }) => {
     if (!isNaN(s) && !isNaN(m) && m > 0) {
       updateWeeklyScore(sessionId, sc.id, { score: s, maxScore: m, link: editLink || undefined });
     }
-    setEditing(false);
+    onClose();
   };
 
-  const handleCancel = () => {
-    setEditVal(String(sc.score)); setEditMax(String(sc.maxScore)); setEditLink(sc.link ?? '');
-    setEditing(false);
-  };
-
-  if (editing) {
-    return (
-      <div className="flex flex-col gap-1.5 px-3 py-2.5 rounded-lg
-        bg-slate-50 dark:bg-ink-900/60 border border-emerald-300 dark:border-emerald-500/40">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-6 shrink-0">#{sc.attemptNumber}</span>
-          <input type="number" value={editVal} onChange={e => setEditVal(e.target.value)}
-            autoFocus
-            className="w-20 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
-              rounded-lg px-2 py-1 text-xs font-mono text-slate-800 dark:text-slate-200
-              focus:outline-none focus:ring-1 focus:ring-emerald-500/40" />
-          <span className="text-xs text-slate-400">/</span>
-          <input type="number" value={editMax} onChange={e => setEditMax(e.target.value)}
-            className="w-20 bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
-              rounded-lg px-2 py-1 text-xs font-mono text-slate-800 dark:text-slate-200
-              focus:outline-none focus:ring-1 focus:ring-emerald-500/40" />
-          <div className="ml-auto flex gap-1">
-            <button onClick={handleSave}
-              className="w-6 h-6 rounded-md bg-emerald-100 dark:bg-emerald-500/20
-                flex items-center justify-center text-emerald-600 dark:text-emerald-400
-                hover:bg-emerald-200 dark:hover:bg-emerald-500/30 transition-colors">
-              <Check size={11} />
-            </button>
-            <button onClick={handleCancel}
-              className="w-6 h-6 rounded-md bg-slate-100 dark:bg-ink-700/60
-                flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-              <X size={11} />
-            </button>
-          </div>
-        </div>
-        <input type="url" value={editLink} onChange={e => setEditLink(e.target.value)}
-          placeholder="Link (optional)"
-          className="w-full bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
-            rounded-lg px-2 py-1 text-xs font-body text-slate-800 dark:text-slate-200
-            placeholder-slate-400 dark:placeholder-slate-600
-            focus:outline-none focus:ring-1 focus:ring-emerald-500/40" />
-      </div>
-    );
-  }
+  const inputCls = `w-full bg-slate-50 dark:bg-ink-900/80 border border-slate-200 dark:border-ink-600/60
+    rounded-xl px-3.5 py-2.5 text-sm font-body text-slate-900 dark:text-slate-100
+    placeholder-slate-400 dark:placeholder-slate-600
+    focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all`;
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 rounded-lg
-      bg-slate-50 dark:bg-ink-900/40 border border-slate-200 dark:border-ink-700/40">
-      <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-6 shrink-0">#{sc.attemptNumber}</span>
-      <div className="flex-1">
-        <ProgressBar value={pct / 100} size="xs" color="emerald" />
+    <Modal open={open} onClose={onClose} title={`Edit Take #${sc.attemptNumber}`}>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <label className="text-xs font-body text-slate-500 dark:text-slate-400 mb-1.5 block">Score</label>
+            <input type="number" value={editVal} onChange={e => setEditVal(e.target.value)} autoFocus className={inputCls} />
+          </div>
+          <span className="text-slate-400 font-mono pb-2.5">/</span>
+          <div className="flex-1">
+            <label className="text-xs font-body text-slate-500 dark:text-slate-400 mb-1.5 block">Max Score</label>
+            <input type="number" value={editMax} onChange={e => setEditMax(e.target.value)} className={inputCls} />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-body text-slate-500 dark:text-slate-400 mb-1.5 block">Link (optional)</label>
+          <input type="url" value={editLink} onChange={e => setEditLink(e.target.value)}
+            placeholder="https://..." className={inputCls} />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600/60
+              text-sm font-body text-slate-600 dark:text-slate-400
+              hover:bg-slate-50 dark:hover:bg-ink-700/40 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleSave}
+            className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600
+              text-sm font-body font-medium text-white transition-colors active:scale-[0.98]">
+            Save
+          </button>
+        </div>
       </div>
-      <span className="text-xs font-mono font-semibold tabular-nums w-12 text-right text-slate-700 dark:text-slate-300">
-        {pct.toFixed(1)}%
-      </span>
-      <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-14 text-right shrink-0">
-        {formatDate(sc.date, 'MMM d')}
-      </span>
-      {sc.link && (
-        <a href={sc.link} target="_blank" rel="noopener noreferrer"
-          className="text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors shrink-0">
-          <ExternalLink size={11} />
-        </a>
-      )}
-      <button onClick={() => { setEditVal(String(sc.score)); setEditMax(String(sc.maxScore)); setEditLink(sc.link ?? ''); setEditing(true); }}
-        className="w-5 h-5 rounded flex items-center justify-center
-          text-slate-300 dark:text-slate-700 hover:text-slate-500 dark:hover:text-slate-400 transition-colors">
-        <Pencil size={10} />
-      </button>
-      <button onClick={() => deleteWeeklyScore(sessionId, sc.id)}
-        className="w-5 h-5 rounded flex items-center justify-center
-          text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">
-        ×
-      </button>
+    </Modal>
+  );
+};
+
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+
+interface DeleteConfirmProps {
+  open: boolean;
+  label: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+const DeleteConfirmModal: React.FC<DeleteConfirmProps> = ({ open, label, onConfirm, onClose }) => (
+  <Modal open={open} onClose={onClose} title="Delete Score">
+    <div className="flex flex-col gap-4">
+      <p className="text-sm font-body text-slate-600 dark:text-slate-400 leading-relaxed">{label}</p>
+      <div className="flex gap-2 pt-1">
+        <button onClick={onClose}
+          className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600/60
+            text-sm font-body text-slate-600 dark:text-slate-400
+            hover:bg-slate-50 dark:hover:bg-ink-700/40 transition-colors">
+          Cancel
+        </button>
+        <button onClick={() => { onConfirm(); onClose(); }}
+          className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600
+            text-sm font-body font-medium text-white transition-colors active:scale-[0.98]">
+          Delete
+        </button>
+      </div>
     </div>
+  </Modal>
+);
+
+// ─── Weekly Score Row ─────────────────────────────────────────────────────────
+
+interface WeeklyScoreRowProps { sc: WeeklyScore; sessionId: string; isBest: boolean; }
+
+const WeeklyScoreRow: React.FC<WeeklyScoreRowProps> = ({ sc, sessionId, isBest }) => {
+  const { deleteWeeklyScore } = useSessionsStore();
+  const [editOpen,   setEditOpen]   = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const pct = (sc.score / sc.maxScore) * 100;
+
+  return (
+    <>
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg
+        bg-slate-50 dark:bg-ink-900/40 border border-slate-200 dark:border-ink-700/40">
+        <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-6 shrink-0">#{sc.attemptNumber}</span>
+        {isBest && (
+          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold
+            bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400
+            border border-amber-200 dark:border-amber-500/25 shrink-0">
+            <Trophy size={8} />
+            Best
+          </span>
+        )}
+        <div className="flex-1 min-w-0">
+          <ProgressBar value={pct / 100} size="xs" color="emerald" />
+        </div>
+        <span className="text-xs font-mono font-semibold tabular-nums w-12 text-right text-slate-700 dark:text-slate-300">
+          {pct.toFixed(1)}%
+        </span>
+        <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 w-14 text-right shrink-0">
+          {formatDate(sc.date, 'MMM d')}
+        </span>
+        {sc.link && (
+          <a href={sc.link} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-medium
+              bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400
+              border border-emerald-200 dark:border-emerald-500/25
+              hover:bg-emerald-100 dark:hover:bg-emerald-500/25 transition-colors shrink-0">
+            <ExternalLink size={9} />
+            Link
+          </a>
+        )}
+        <button onClick={() => setEditOpen(true)}
+          className="w-5 h-5 rounded flex items-center justify-center
+            text-slate-300 dark:text-slate-700 hover:text-slate-500 dark:hover:text-slate-400 transition-colors">
+          <Pencil size={10} />
+        </button>
+        <button onClick={() => setDeleteOpen(true)}
+          className="w-5 h-5 rounded flex items-center justify-center
+            text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">
+          <Trash2 size={10} />
+        </button>
+      </div>
+      <WeeklyScoreEditModal sc={sc} sessionId={sessionId} open={editOpen} onClose={() => setEditOpen(false)} />
+      <DeleteConfirmModal
+        open={deleteOpen}
+        label={`Delete Take #${sc.attemptNumber} (${pct.toFixed(1)}%)? This cannot be undone.`}
+        onConfirm={() => deleteWeeklyScore(sessionId, sc.id)}
+        onClose={() => setDeleteOpen(false)}
+      />
+    </>
   );
 };
 
 // ─── Weekly Test Modal ────────────────────────────────────────────────────────
+
+interface WeeklyTestModalProps {
+  session: Session;
+  open: boolean;
+  onClose: () => void;
+}
 
 const WeeklyTestModal: React.FC<WeeklyTestModalProps> = ({ session, open, onClose }) => {
   const { addWeeklyScore, updateWeeklyTest } = useSessionsStore();
@@ -148,6 +217,10 @@ const WeeklyTestModal: React.FC<WeeklyTestModalProps> = ({ session, open, onClos
   const fakeEntries = scores.map(s => ({ ...s, testId: session.id }));
   const avg  = averageScore(fakeEntries as any);
   const best = highestScore(fakeEntries as any);
+
+  const bestPct = scores.length > 0
+    ? Math.max(...scores.map(s => s.score / s.maxScore))
+    : -Infinity;
 
   const pctPreview = score && maxScore
     ? ((parseFloat(score) / parseFloat(maxScore)) * 100).toFixed(1)
@@ -210,9 +283,11 @@ const WeeklyTestModal: React.FC<WeeklyTestModalProps> = ({ session, open, onClos
         {/* Score history */}
         {scores.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            {scores.map(sc => (
-              <WeeklyScoreRow key={sc.id} sc={sc} sessionId={session.id} />
-            ))}
+            {scores.map(sc => {
+              const pct = sc.score / sc.maxScore;
+              const isBest = scores.length > 1 && Math.abs(pct - bestPct) < 1e-9;
+              return <WeeklyScoreRow key={sc.id} sc={sc} sessionId={session.id} isBest={isBest} />;
+            })}
           </div>
         )}
 
@@ -291,13 +366,15 @@ interface Props {
 }
 
 export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
-  const { cycleAttendance, cycleReviewStatus, regenerateReviews, toggleReviewDate, setReviewDate } = useSessionsStore();
+  const { cycleAttendance, cycleReviewStatus, regenerateReviews, toggleReviewDate, setReviewDate, addReview, deleteReview } = useSessionsStore();
   const { subjects } = useSubjectsStore();
   const { settings } = useSettingsStore();
+  const { addToast } = useToastStore();
   const [expanded,         setExpanded]         = useState(false);
   const [weeklyTestOpen,   setWeeklyTestOpen]   = useState(false);
   const [editingDateIndex, setEditingDateIndex] = useState<number | null>(null);
   const [tempDate,         setTempDate]         = useState('');
+  const [deleteReviewId,   setDeleteReviewId]   = useState<string | null>(null);
 
   const subject  = subjects.find(s => s.id === session.subjectId);
   const colors   = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
@@ -323,7 +400,7 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
       animate-fade-in overflow-hidden shadow-card dark:shadow-none`}
     >
       <div className={`px-4 py-3.5 ${colors.bg}`}>
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
           <button
             onClick={() => setExpanded(v => !v)}
             className="flex-1 min-w-0 text-left group"
@@ -348,9 +425,12 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={e => e.stopPropagation()}
-                  className="flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline ml-1"
-                >
-                  <ExternalLink size={10} /> Notes
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-medium ml-1
+                    bg-white/60 dark:bg-ink-700/60 text-emerald-600 dark:text-emerald-400
+                    border border-emerald-200 dark:border-emerald-500/25
+                    hover:bg-emerald-50 dark:hover:bg-emerald-500/15 transition-colors">
+                  <ExternalLink size={9} />
+                  Notes
                 </a>
               )}
             </div>
@@ -360,14 +440,18 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
                 group-hover:text-slate-900 dark:group-hover:text-white transition-colors truncate">
                 {session.topicLabel}
               </span>
-              <span className="text-slate-400 dark:text-slate-600 ml-auto shrink-0">
-                {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </span>
             </div>
             {subject && <p className={`text-xs ${colors.text} mt-0.5 truncate`}>{subject.name}</p>}
           </button>
 
           <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setExpanded(v => !v)}
+              className="w-7 h-7 rounded-lg hover:bg-white/40 dark:hover:bg-ink-700/60
+                flex items-center justify-center text-slate-400 dark:text-slate-500
+                hover:text-slate-600 dark:hover:text-slate-300 transition-all">
+              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
             <button
               onClick={() => onEdit(session)}
               className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-ink-700/40 hover:bg-slate-200 dark:hover:bg-ink-600
@@ -390,7 +474,14 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
         <div className="flex items-center gap-3 mt-2.5">
           <div className="flex items-center gap-1.5">
             <CalendarCheck size={12} className="text-slate-400 dark:text-slate-600" />
-            <StatusBadge status={session.attendanceStatus} size="sm" onClick={() => cycleAttendance(session.id)} />
+            <StatusBadge status={session.attendanceStatus} size="sm" onClick={() => {
+              const cur = ATTENDANCE_STATUS_ORDER.indexOf(session.attendanceStatus);
+              const next = ATTENDANCE_STATUS_ORDER[(cur + 1) % ATTENDANCE_STATUS_ORDER.length];
+              cycleAttendance(session.id);
+              if (next === 'attended') addToast('Attendance marked!');
+              else if (next === 'partially-attended') addToast('Partially attended');
+              else addToast('Attendance reset', 'info');
+            }} />
           </div>
           <ProgressBar value={progress} size="xs" color={subject?.color as any ?? 'emerald'} className="flex-1" />
           <span className="text-xs font-mono text-slate-400 dark:text-slate-500 tabular-nums">{pctNum(progress)}%</span>
@@ -404,14 +495,24 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
             <p className="text-xs font-body font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">
               Reviews
             </p>
-            <button
-              onClick={() => regenerateReviews(session.id, settings.reviewIntervals)}
-              className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-600
-                hover:text-emerald-600 dark:hover:text-slate-400 transition-colors"
-            >
-              <RefreshCw size={10} />
-              Regenerate
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { addReview(session.id); addToast('Review added'); }}
+                className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400
+                  hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors font-medium"
+              >
+                <Plus size={10} />
+                Add
+              </button>
+              <button
+                onClick={() => regenerateReviews(session.id, settings.reviewIntervals)}
+                className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-600
+                  hover:text-emerald-600 dark:hover:text-slate-400 transition-colors"
+              >
+                <RefreshCw size={10} />
+                Regenerate
+              </button>
+            </div>
           </div>
 
           {session.reviews.length === 0 ? (
@@ -423,77 +524,89 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
                 const isEditingDate = editingDateIndex === i;
 
                 return (
-                  <div key={review.id} className={`rounded-lg border text-xs font-body
-                    ${REVIEW_STATUS_COLORS[review.status]}`}
-                  >
-                    <div className="flex items-center gap-2 px-3 py-2">
+                  <div key={review.id} className={`rounded-xl border font-body ${REVIEW_STATUS_COLORS[review.status]}`}>
+                    {/* Top row: status cycle */}
+                    <button
+                      onClick={() => {
+                        const cur = READ_STATUS_ORDER.indexOf(review.status);
+                        const next = READ_STATUS_ORDER[(cur + 1) % READ_STATUS_ORDER.length];
+                        cycleReviewStatus(session.id, i);
+                        if (next === 'done') addToast(`Review ${review.reviewNumber} completed!`);
+                      }}
+                      className="flex items-center gap-2 w-full px-3 pt-2.5 pb-1.5 text-left hover:opacity-80 transition-opacity active:scale-[0.98]"
+                    >
+                      <span className="text-xs font-semibold">Review {review.reviewNumber}</span>
+                      <StatusBadge status={review.status} />
+                    </button>
+
+                    {/* Bottom row: date + actions */}
+                    <div className="flex items-center gap-1 px-2 pb-2">
+                      {/* Date toggle */}
                       <button
-                        onClick={() => cycleReviewStatus(session.id, i)}
-                        className="flex items-center gap-2 flex-1 text-left hover:opacity-80 transition-opacity active:scale-[0.98]"
+                        onClick={() => toggleReviewDate(session.id, i, session.date, settings.reviewIntervals)}
+                        title={dateEnabled ? 'Disable date' : 'Enable date'}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center
+                          hover:bg-black/5 dark:hover:bg-white/5 transition-colors shrink-0"
                       >
-                        <span className="font-medium">Review {review.reviewNumber}</span>
-                        <StatusBadge status={review.status} />
+                        {dateEnabled
+                          ? <ToggleRight size={18} className="text-emerald-500 dark:text-emerald-400" />
+                          : <ToggleLeft size={18} className="text-slate-400 dark:text-slate-500" />
+                        }
                       </button>
 
                       {/* Date display / edit */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        {dateEnabled ? (
-                          isEditingDate ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="date"
-                                value={tempDate}
-                                onChange={e => setTempDate(e.target.value)}
-                                className="text-[10px] font-mono bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
-                                  rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
-                              />
-                              <button
-                                onClick={() => handleDateSave(i)}
-                                className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium hover:text-emerald-700"
-                              >
-                                ✓
-                              </button>
-                              <button
-                                onClick={() => setEditingDateIndex(null)}
-                                className="text-[10px] text-slate-400 hover:text-slate-600"
-                              >
-                                ✗
-                              </button>
-                            </div>
-                          ) : (
+                      <div className="flex-1 min-w-0">
+                        {isEditingDate ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="date"
+                              value={tempDate}
+                              onChange={e => setTempDate(e.target.value)}
+                              className="text-xs font-mono bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
+                                rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 w-full"
+                            />
                             <button
-                              onClick={() => handleDateEdit(i, review.scheduledDate)}
-                              className="font-mono text-[10px] opacity-70 hover:opacity-100 transition-opacity"
+                              onClick={() => handleDateSave(i)}
+                              className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center
+                                text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 transition-colors shrink-0"
                             >
-                              {review.scheduledDate ? formatDate(review.scheduledDate, 'MMM d') : '—'}
+                              <Check size={13} />
                             </button>
-                          )
+                            <button
+                              onClick={() => setEditingDateIndex(null)}
+                              className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-ink-700/60 flex items-center justify-center
+                                text-slate-400 hover:bg-slate-200 dark:hover:bg-ink-600/60 transition-colors shrink-0"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
                         ) : (
-                          <span className="font-mono text-[10px] opacity-50 italic">No date</span>
-                        )}
-
-                        {/* Date toggle */}
-                        <button
-                          onClick={() => toggleReviewDate(session.id, i, session.date, settings.reviewIntervals)}
-                          title={dateEnabled ? 'Disable date' : 'Enable date'}
-                          className="ml-1 text-slate-400 dark:text-slate-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                        >
-                          {dateEnabled
-                            ? <ToggleRight size={14} className="text-emerald-500 dark:text-emerald-400" />
-                            : <ToggleLeft size={14} />
-                          }
-                        </button>
-
-                        {/* Calendar icon shortcut */}
-                        {dateEnabled && !isEditingDate && (
                           <button
-                            onClick={() => handleDateEdit(i, review.scheduledDate)}
-                            className="text-slate-400 dark:text-slate-600 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                            onClick={() => dateEnabled && handleDateEdit(i, review.scheduledDate)}
+                            disabled={!dateEnabled}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-mono w-full text-left
+                              transition-colors ${dateEnabled
+                                ? 'hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer'
+                                : 'opacity-40 cursor-default'}`}
                           >
-                            <Calendar size={11} />
+                            <Calendar size={12} className="shrink-0" />
+                            <span>{dateEnabled
+                              ? (review.scheduledDate ? formatDate(review.scheduledDate, 'MMM d, yyyy') : 'Set date')
+                              : 'No date'
+                            }</span>
                           </button>
                         )}
                       </div>
+
+                      {/* Delete */}
+                      <button
+                        onClick={() => setDeleteReviewId(review.id)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0
+                          text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400
+                          hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 );
@@ -535,6 +648,16 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
         session={session}
         open={weeklyTestOpen}
         onClose={() => setWeeklyTestOpen(false)}
+      />
+
+      <DeleteConfirmModal
+        open={deleteReviewId !== null}
+        label={(() => {
+          const rev = session.reviews.find(r => r.id === deleteReviewId);
+          return rev ? `Delete Review ${rev.reviewNumber}? This cannot be undone.` : '';
+        })()}
+        onConfirm={() => { if (deleteReviewId) { deleteReview(session.id, deleteReviewId); addToast('Review deleted', 'info'); } }}
+        onClose={() => setDeleteReviewId(null)}
       />
     </div>
   );

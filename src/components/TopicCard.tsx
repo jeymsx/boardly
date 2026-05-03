@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { RotateCcw, Pencil, Trash2, ChevronDown, ChevronUp, StickyNote } from 'lucide-react';
 import { useSubjectsStore } from '../store/useSubjectsStore';
+import { useToastStore } from '../store/useToastStore';
 import { topicProgress, pctNum } from '../utils/progress';
 import { ProgressBar } from './ui/ProgressBar';
 import { StatusBadge } from './ui/Badge';
@@ -34,6 +35,7 @@ interface Props {
 
 export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete }) => {
   const { cycleReadStatus, resetTopicReads } = useSubjectsStore();
+  const { addToast } = useToastStore();
   const [expanded, setExpanded] = useState(false);
   const progress    = topicProgress(topic);
   const isComplete  = progress === 1 && topic.reads.length > 0;
@@ -96,7 +98,13 @@ export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete })
             return (
               <button
                 key={read.id}
-                onClick={() => !isDisabled && cycleReadStatus(topic.id, i)}
+                onClick={() => {
+                  if (isDisabled) return;
+                  const nextStatuses: ReadStatus[] = ['in-progress', 'done', 'pending'];
+                  const next = nextStatuses[['pending', 'in-progress', 'done'].indexOf(read.status)];
+                  cycleReadStatus(topic.id, i);
+                  if (next === 'done') addToast(`Read ${read.readNumber} completed!`);
+                }}
                 title={isDisabled ? `Complete Read ${i} first` : `Read ${read.readNumber} — tap to cycle`}
                 className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-mono font-medium
                   transition-all active:scale-90 hover:opacity-80 ${READ_STATUS_COLORS[read.status]}

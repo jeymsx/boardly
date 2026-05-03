@@ -29,7 +29,7 @@ export const SubjectCard: React.FC<Props> = ({
     <div className={`rounded-2xl border ${colors.border} bg-white dark:bg-ink-800/40
       overflow-hidden transition-all animate-scale-in shadow-card dark:shadow-none`}
     >
-      <div className={`px-4 py-3.5 ${colors.bg} border-b ${colors.border}`}>
+      <div className={`px-4 py-3.5 ${colors.solidBg} border-b ${colors.border}`}>
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={() => setOpen(v => !v)}

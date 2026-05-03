@@ -12,8 +12,7 @@ import { Tests } from './pages/Tests';
 import { Calendar } from './pages/Calendar';
 import { Settings } from './pages/Settings';
 import { Onboarding } from './components/Onboarding';
-import { DEFAULT_PAGE_LABELS } from './types';
-import { TrendingUp } from 'lucide-react';
+import { Toaster } from './components/ui/Toaster';
 
 const PAGE_MAP = {
   dashboard: Dashboard, subjects: Subjects, sessions: Sessions,
@@ -23,10 +22,9 @@ const PAGE_MAP = {
 export default function App() {
   const { page } = useNavStore();
   useThemeStore(); // ensure store is initialized (applies dark class on load)
-  const { settings } = useSettingsStore();
+  useSettingsStore(); // keep store initialized for settings reactivity
   const { initialize } = useAuthStore();
   const PageComponent = PAGE_MAP[page];
-  const labels = { ...DEFAULT_PAGE_LABELS, ...settings.pageLabels };
   const [showOnboarding, setShowOnboarding] = useState(
     () => localStorage.getItem('boardly:onboarded') !== 'true',
   );
@@ -45,29 +43,14 @@ export default function App() {
 
       <Sidebar />
 
-      <main className="flex-1 flex flex-col min-h-dvh overflow-y-auto">
-        {/* Mobile top bar */}
-        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3
-          bg-white/90 dark:bg-ink-950/90 backdrop-blur-xl
-          border-b border-slate-200 dark:border-ink-800/60"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center">
-              <TrendingUp size={14} className="text-white stroke-[2.5]" />
-            </div>
-            <span className="font-display font-bold text-base text-slate-900 dark:text-slate-100">Boardly</span>
-          </div>
-          <span className="text-xs font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-            {labels[page]}
-          </span>
-        </header>
-
+      <main className="flex-1 flex flex-col h-dvh overflow-y-auto">
         <div className="flex-1 pb-24 lg:pb-6">
           <PageComponent key={page} />
         </div>
       </main>
 
       <BottomNav />
+      <Toaster />
     </div>
   );
 }

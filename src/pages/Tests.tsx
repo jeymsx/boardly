@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Plus, FlaskConical } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, FlaskConical, Search } from 'lucide-react';
 import { useTestsStore } from '../store/useTestsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { useToastStore } from '../store/useToastStore';
 import { TestCard } from '../components/TestCard';
 import { Modal } from '../components/ui/Modal';
 import { Input, Select, Textarea } from '../components/ui/Input';
@@ -227,6 +228,7 @@ export const Tests: React.FC = () => {
   const { tests, addTest, updateTest, deleteTest, addScore } = useTestsStore();
   const { subjects } = useSubjectsStore();
   const { settings } = useSettingsStore();
+  const { addToast } = useToastStore();
 
   const [testModal,    setTestModal]    = useState(false);
   const [editing,      setEditing]      = useState<MasteryTest | null>(null);
@@ -234,6 +236,20 @@ export const Tests: React.FC = () => {
   const [scoringTest,  setScoringTest]  = useState<MasteryTest | null>(null);
   const [delModal,     setDelModal]     = useState(false);
   const [delTarget,    setDelTarget]    = useState<MasteryTest | null>(null);
+  const [search,       setSearch]       = useState('');
+
+  const filteredTests = useMemo(() => {
+    if (!search.trim()) return tests;
+    const q = search.toLowerCase();
+    return tests.filter(t => {
+      const subj = t.subjectEnabled && t.subjectId ? subjects.find(s => s.id === t.subjectId) : undefined;
+      return (
+        t.name.toLowerCase().includes(q) ||
+        (t.topicLabel?.toLowerCase().includes(q) ?? false) ||
+        (subj?.name.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [tests, search, subjects]);
 
   const handleSaveTest = (form: TestForm) => {
     if (editing) {
@@ -245,6 +261,7 @@ export const Tests: React.FC = () => {
         targetScore: form.targetScore,
         link: form.link || undefined,
       });
+      addToast('Test updated');
     } else {
       addTest({
         name: form.name,
@@ -254,13 +271,18 @@ export const Tests: React.FC = () => {
         targetScore: form.targetScore,
         link: form.link || undefined,
       });
+      addToast('Test added');
     }
     setTestModal(false);
     setEditing(null);
   };
 
   const handleAddScore = (score: number, maxScore: number, notes: string, link: string) => {
-    if (scoringTest) addScore(scoringTest.id, score, maxScore, notes || undefined, link || undefined);
+    if (scoringTest) {
+      addScore(scoringTest.id, score, maxScore, notes || undefined, link || undefined);
+      const pct = ((score / maxScore) * 100).toFixed(1);
+      addToast(`Score recorded: ${pct}%`);
+    }
     setScoreModal(false);
     setScoringTest(null);
   };
@@ -270,13 +292,13 @@ export const Tests: React.FC = () => {
 
   const requestDelete = (t: MasteryTest) => { setDelTarget(t); setDelModal(true); };
   const confirmDelete = () => {
-    if (delTarget) deleteTest(delTarget.id);
+    if (delTarget) { deleteTest(delTarget.id); addToast('Test deleted', 'info'); }
     setDelModal(false);
     setDelTarget(null);
   };
 
   return (
-    <div className="p-4 lg:p-6 max-w-3xl mx-auto animate-fade-in">
+    <div className="p-4 lg:p-6 animate-fade-in">
       <PageHeader
         title="Mastery Tests"
         subtitle={`${tests.length} test${tests.length !== 1 ? 's' : ''}`}
@@ -286,6 +308,23 @@ export const Tests: React.FC = () => {
           </Button>
         }
       />
+
+      {/* Search */}
+      {tests.length > 0 && (
+        <div className="relative mb-4">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search tests…"
+            className="w-full pl-8 pr-4 py-2 rounded-xl text-sm font-body
+              bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
+              text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600
+              focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all"
+          />
+        </div>
+      )}
 
       {tests.length === 0 ? (
         <EmptyState
@@ -298,9 +337,15 @@ export const Tests: React.FC = () => {
             </Button>
           }
         />
+      ) : filteredTests.length === 0 ? (
+        <EmptyState
+          icon={<Search size={24} />}
+          title="No results"
+          description={`No tests matching "${search}".`}
+        />
       ) : (
         <div className="flex flex-col gap-3">
-          {tests.map(test => (
+          {filteredTests.map(test => (
             <TestCard
               key={test.id}
               test={test}

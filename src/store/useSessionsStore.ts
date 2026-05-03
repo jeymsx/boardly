@@ -30,6 +30,8 @@ interface SessionsStore {
   toggleReviewDate:  (sessionId: string, reviewIndex: number, sessionDate: string, intervals: number[]) => void;
   setReviewDate:     (sessionId: string, reviewIndex: number, date: string) => void;
   regenerateReviews: (sessionId: string, intervals: number[]) => void;
+  addReview:         (sessionId: string, date?: string) => void;
+  deleteReview:      (sessionId: string, reviewId: string) => void;
 
   addWeeklyScore:    (sessionId: string, params: { score: number; maxScore: number; notes?: string; link?: string }) => void;
   updateWeeklyScore: (sessionId: string, scoreId: string, patch: { score?: number; maxScore?: number; link?: string }) => void;
@@ -160,6 +162,41 @@ export const useSessionsStore = create<SessionsStore>((set, get) => ({
         const reviews = s.reviews.map((r, i) =>
           i === reviewIndex ? { ...r, scheduledDate: date } : r
         );
+        return { ...s, reviews };
+      });
+      persist(sessions);
+      return { sessions };
+    });
+    scheduleSessionsSync(get().sessions);
+  },
+
+  addReview: (sessionId, date) => {
+    set(state => {
+      const sessions = state.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        const review: ReviewEntry = {
+          id: uuid(),
+          sessionId,
+          reviewNumber: s.reviews.length + 1,
+          scheduledDate: date ?? null,
+          dateEnabled: !!date,
+          status: 'pending',
+        };
+        return { ...s, reviews: [...s.reviews, review] };
+      });
+      persist(sessions);
+      return { sessions };
+    });
+    scheduleSessionsSync(get().sessions);
+  },
+
+  deleteReview: (sessionId, reviewId) => {
+    set(state => {
+      const sessions = state.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        const reviews = s.reviews
+          .filter(r => r.id !== reviewId)
+          .map((r, i) => ({ ...r, reviewNumber: i + 1 }));
         return { ...s, reviews };
       });
       persist(sessions);
