@@ -3,6 +3,8 @@ import { storage } from './storage';
 import { generateReviewDates } from './dates';
 import type { Subject, Topic, Session, MasteryTest, ReadEntry, ReviewEntry } from '../types';
 
+// Tags are user-defined; seed data starts with no tags.
+
 function reads(total: number, doneCount = 0): ReadEntry[] {
   return Array.from({ length: total }, (_, i) => ({
     id: uuid(),
@@ -62,10 +64,12 @@ export function seedIfEmpty() {
       id: sess1Id,
       date: fmtDate(-5),
       subjectId: 'subj-1',
+      subjectEnabled: true,
       topicLabel: 'Day 1 — Water Distribution Systems',
       attendanceStatus: 'attended',
       reviews: makeReviews(sess1Id, fmtDate(-5)),
       totalReviews: 3,
+      tags: [],
       weeklyTest: { scores: [] },
       createdAt: new Date().toISOString(),
     },
@@ -73,10 +77,12 @@ export function seedIfEmpty() {
       id: sess2Id,
       date: fmtDate(-2),
       subjectId: 'subj-2',
+      subjectEnabled: true,
       topicLabel: 'Day 2 — Pipe Flow Calculations',
       attendanceStatus: 'attended',
       reviews: makeReviews(sess2Id, fmtDate(-2)),
       totalReviews: 3,
+      tags: [],
       weeklyTest: { scores: [] },
       createdAt: new Date().toISOString(),
     },
@@ -84,10 +90,12 @@ export function seedIfEmpty() {
       id: sess3Id,
       date: fmtDate(1),
       subjectId: 'subj-3',
+      subjectEnabled: true,
       topicLabel: 'Day 3 — SPDI Overview',
       attendanceStatus: 'pending',
       reviews: makeReviews(sess3Id, fmtDate(1)),
       totalReviews: 3,
+      tags: [],
       weeklyTest: { scores: [] },
       createdAt: new Date().toISOString(),
     },

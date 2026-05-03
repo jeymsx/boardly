@@ -23,13 +23,15 @@ export function reviewProgress(reviews: ReviewEntry[]): number {
 }
 
 export function sessionProgress(session: Session): number {
-  const attendanceWeight = 0.4;
-  const reviewWeight = 0.6;
   const attendanceScore =
     session.attendanceStatus === 'attended' ? 1 :
     session.attendanceStatus === 'partially-attended' ? 0.5 : 0;
-  const rvProgress = reviewProgress(session.reviews);
-  return attendanceScore * attendanceWeight + rvProgress * reviewWeight;
+
+  if (!session.reviews.length) {
+    return attendanceScore;
+  }
+
+  return attendanceScore * 0.4 + reviewProgress(session.reviews) * 0.6;
 }
 
 export function testProgress(test: MasteryTest, targetScore: number): number {

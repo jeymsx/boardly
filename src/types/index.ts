@@ -58,6 +58,14 @@ export const COLOR_MAP: Record<SubjectColor, { bg: string; solidBg: string; text
   pink:   { bg: 'bg-pink-50 dark:bg-pink-500/10',     solidBg: 'bg-pink-100 dark:bg-pink-500/25',     text: 'text-pink-700 dark:text-pink-400',     border: 'border-pink-300 dark:border-pink-500/30',     dot: 'bg-pink-500'    },
 };
 
+// ─── Tags ─────────────────────────────────────────────────────────────────────
+
+export interface Tag {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 // ─── Sessions ─────────────────────────────────────────────────────────────────
 
 export interface ReviewEntry {
@@ -89,12 +97,14 @@ export interface Session {
   id: string;
   date: string;
   subjectId: string;
+  subjectEnabled: boolean;
   topicLabel: string;
   attendanceStatus: AttendanceStatus;
   reviews: ReviewEntry[];
   totalReviews: number;
   notes?: string;
   notesLink?: string;
+  tags?: string[];
   weeklyTest?: WeeklyTest;
   createdAt: string;
 }
@@ -187,6 +197,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
   examDates: [],
   pageLabels: { ...DEFAULT_PAGE_LABELS },
 };
+
+// ─── Bookmarks ────────────────────────────────────────────────────────────────
+
+export interface Bookmark {
+  id: string;
+  title: string;
+  url: string;
+  icon?: string;
+  pinned: boolean;
+  createdAt: string;
+}
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 

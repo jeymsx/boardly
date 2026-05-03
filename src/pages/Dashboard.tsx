@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   BookOpen, GraduationCap, FlaskConical, TrendingUp,
   CalendarDays, CheckCircle2, Clock, ChevronRight, Timer, Activity,
-  Plus, BookMarked, RotateCcw,
+  Plus, BookMarked, RotateCcw, Bookmark, Star, Trash2, ExternalLink, Link2,
 } from 'lucide-react';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSessionsStore } from '../store/useSessionsStore';
@@ -10,11 +10,13 @@ import { useTestsStore } from '../store/useTestsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useEventsStore } from '../store/useEventsStore';
 import { useNavStore } from '../store/useNavStore';
+import { useBookmarksStore } from '../store/useBookmarksStore';
+import { useToastStore } from '../store/useToastStore';
+import { Modal } from '../components/ui/Modal';
 import { overallProgress, subjectProgress, pctNum } from '../utils/progress';
 import { highestScore, latestScore } from '../utils/scores';
 import { upcomingEvents, formatDay, isToday, daysUntil } from '../utils/dates';
 import { ProgressBar } from '../components/ui/ProgressBar';
-import { Modal } from '../components/ui/Modal';
 import { ActivityPage } from './ActivityPage';
 import { COLOR_MAP } from '../types';
 import type { AttendanceStatus, Session, CalendarEvent } from '../types';
@@ -96,6 +98,84 @@ const AttendanceBadge: React.FC<{ status: AttendanceStatus; isToday: boolean }> 
   return null;
 };
 
+// ─── Bookmark Add Modal ───────────────────────────────────────────────────────
+
+const AddBookmarkModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
+  const { addBookmark } = useBookmarksStore();
+  const { addToast }    = useToastStore();
+  const [title, setTitle] = useState('');
+  const [url,   setUrl]   = useState('');
+  const [icon,  setIcon]  = useState('');
+
+  React.useEffect(() => {
+    if (open) { setTitle(''); setUrl(''); setIcon(''); }
+  }, [open]);
+
+  const handleSave = () => {
+    if (!title.trim() || !url.trim()) {
+      addToast('Title and URL are required', 'error');
+      return;
+    }
+    let finalUrl = url.trim();
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      finalUrl = 'https://' + finalUrl;
+    }
+    addBookmark({ title: title.trim(), url: finalUrl, icon: icon.trim() || undefined });
+    addToast('Bookmark saved');
+    onClose();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); }
+  };
+
+  const inputCls = `w-full bg-slate-50 dark:bg-ink-900/80 border border-slate-200 dark:border-ink-600/60
+    rounded-xl px-3.5 py-2.5 text-sm font-body text-slate-900 dark:text-slate-100
+    placeholder-slate-400 dark:placeholder-slate-600
+    focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all`;
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add Bookmark">
+      <div className="flex flex-col gap-4" onKeyDown={handleKeyDown}>
+        <div>
+          <label className="text-xs font-body font-medium text-slate-600 dark:text-slate-400 mb-1.5 block">
+            Title <span className="text-rose-400">*</span>
+          </label>
+          <input autoFocus type="text" value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="e.g. PSME Reviewer" className={inputCls} />
+        </div>
+        <div>
+          <label className="text-xs font-body font-medium text-slate-600 dark:text-slate-400 mb-1.5 block">
+            URL <span className="text-rose-400">*</span>
+          </label>
+          <input type="text" value={url} onChange={e => setUrl(e.target.value)}
+            placeholder="https://..." className={inputCls} />
+        </div>
+        <div>
+          <label className="text-xs font-body font-medium text-slate-600 dark:text-slate-400 mb-1.5 block">
+            Emoji Icon (optional)
+          </label>
+          <input type="text" value={icon} onChange={e => setIcon(e.target.value)}
+            placeholder="e.g. 📚 🔗 📝" className={inputCls} />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600/60
+              text-sm font-body text-slate-600 dark:text-slate-400
+              hover:bg-slate-50 dark:hover:bg-ink-700/40 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={!title.trim() || !url.trim()}
+            className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40
+              text-sm font-body font-medium text-white transition-colors active:scale-[0.98]">
+            Save Bookmark
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export const Dashboard: React.FC = () => {
@@ -105,6 +185,7 @@ export const Dashboard: React.FC = () => {
   const { settings } = useSettingsStore();
   const { events } = useEventsStore();
   const { navigate } = useNavStore();
+  const { bookmarks, togglePin, deleteBookmark } = useBookmarksStore();
 
   const overall = overallProgress(subjects, topics, sessions, tests, settings.targetPassingScore);
   const { upcomingSessions, upcomingReviews } = upcomingEvents(sessions, 7);
@@ -172,6 +253,14 @@ export const Dashboard: React.FC = () => {
   type WeekDayInfo = (typeof weekDays)[number];
   const [selectedDay, setSelectedDay] = useState<WeekDayInfo | null>(null);
   const [showActivity, setShowActivity] = useState(false);
+  const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
+
+  const sortedBookmarks = useMemo(() =>
+    [...bookmarks].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    }),
+  [bookmarks]);
 
   // Activity feed — derived from existing data, newest first
   const activityFeed = useMemo(() => {
@@ -321,6 +410,87 @@ export const Dashboard: React.FC = () => {
             <p className="text-xs text-slate-400 dark:text-slate-500 font-body mt-0.5">{stat.label}</p>
           </button>
         ))}
+      </div>
+
+      {/* Bookmarks */}
+      <div className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
+        rounded-xl overflow-hidden mb-4 shadow-card dark:shadow-none">
+        <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bookmark size={14} className="text-emerald-600 dark:text-emerald-400" />
+            <h2 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200">Bookmarks</h2>
+            {bookmarks.length > 0 && (
+              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600">{bookmarks.length}</span>
+            )}
+          </div>
+          <button
+            onClick={() => setAddBookmarkOpen(true)}
+            className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400
+              hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+          >
+            <Plus size={12} /> Add
+          </button>
+        </div>
+        {sortedBookmarks.length === 0 ? (
+          <div className="px-4 py-6 text-center">
+            <Link2 size={20} className="text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+            <p className="text-sm text-slate-400 dark:text-slate-600">No bookmarks yet.</p>
+            <button onClick={() => setAddBookmarkOpen(true)}
+              className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 hover:text-emerald-700">
+              Add your first link →
+            </button>
+          </div>
+        ) : (
+          <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {sortedBookmarks.map(bm => (
+              <div key={bm.id}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all group
+                  ${bm.pinned
+                    ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20'
+                    : 'bg-slate-50 dark:bg-ink-900/40 border-slate-200 dark:border-ink-700/40'}`}
+              >
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0
+                  bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/40 text-sm">
+                  {bm.icon || '🔗'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <a
+                    href={bm.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-body font-medium text-slate-700 dark:text-slate-300
+                      hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors truncate block"
+                  >
+                    {bm.title}
+                  </a>
+                  <p className="text-[10px] font-mono text-slate-400 dark:text-slate-600 truncate">
+                    {bm.url.replace(/^https?:\/\//, '').split('/')[0]}
+                  </p>
+                </div>
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <a href={bm.url} target="_blank" rel="noopener noreferrer"
+                    className="w-6 h-6 rounded flex items-center justify-center
+                      text-slate-300 dark:text-slate-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
+                    <ExternalLink size={11} />
+                  </a>
+                  <button onClick={() => togglePin(bm.id)}
+                    className={`w-6 h-6 rounded flex items-center justify-center transition-colors
+                      ${bm.pinned
+                        ? 'text-amber-500 hover:text-amber-600'
+                        : 'text-slate-300 dark:text-slate-700 hover:text-amber-500'}`}
+                  >
+                    <Star size={11} fill={bm.pinned ? 'currentColor' : 'none'} />
+                  </button>
+                  <button onClick={() => deleteBookmark(bm.id)}
+                    className="w-6 h-6 rounded flex items-center justify-center
+                      text-slate-300 dark:text-slate-700 hover:text-rose-500 dark:hover:text-rose-400 transition-colors">
+                    <Trash2 size={11} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
@@ -632,6 +802,8 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      <AddBookmarkModal open={addBookmarkOpen} onClose={() => setAddBookmarkOpen(false)} />
 
       {/* Day detail modal */}
       {selectedDay && (

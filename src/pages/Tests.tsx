@@ -6,7 +6,7 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { useToastStore } from '../store/useToastStore';
 import { TestCard } from '../components/TestCard';
 import { Modal } from '../components/ui/Modal';
-import { Input, Select, Textarea } from '../components/ui/Input';
+import { Input, Select } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -53,9 +53,15 @@ const TestModal: React.FC<TestModalProps> = ({
     }
   }, [open, initial, defaultTarget, subjects]);
 
+  const handleSave = () => {
+    if (!name.trim() || (subjectEnabled && !subjectId)) return;
+    onSave({ name: name.trim(), subjectId, subjectEnabled, topicLabel, targetScore, link });
+  };
+
   return (
     <Modal open={open} onClose={onClose} title={initial ? 'Edit Test' : 'New Test'}>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4"
+        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); } }}>
         <Input
           label="Test Name"
           value={name}
@@ -114,92 +120,10 @@ const TestModal: React.FC<TestModalProps> = ({
         />
         <div className="flex gap-2 pt-1">
           <Button variant="ghost" fullWidth onClick={onClose}>Cancel</Button>
-          <Button variant="primary" fullWidth
-            onClick={() => onSave({ name: name.trim(), subjectId, subjectEnabled, topicLabel, targetScore, link })}
+          <Button variant="primary" fullWidth onClick={handleSave}
             disabled={!name.trim() || (subjectEnabled && !subjectId)}
           >
             {initial ? 'Save' : 'Add Test'}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-};
-
-// ─── Add Score Modal ──────────────────────────────────────────────────────────
-
-interface ScoreModalProps {
-  open: boolean;
-  test: MasteryTest | null;
-  onClose: () => void;
-  onSave:  (score: number, maxScore: number, notes: string, link: string) => void;
-}
-
-const ScoreModal: React.FC<ScoreModalProps> = ({ open, test, onClose, onSave }) => {
-  const [score,    setScore]    = useState('');
-  const [maxScore, setMaxScore] = useState('100');
-  const [notes,    setNotes]    = useState('');
-  const [link,     setLink]     = useState('');
-
-  React.useEffect(() => {
-    if (open) { setScore(''); setMaxScore('100'); setNotes(''); setLink(''); }
-  }, [open]);
-
-  const pct = score && maxScore ? ((parseFloat(score) / parseFloat(maxScore)) * 100).toFixed(1) : null;
-
-  return (
-    <Modal open={open} onClose={onClose} title={`Add Score — ${test?.name ?? ''}`}>
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Score"
-            type="number"
-            min={0}
-            value={score}
-            onChange={e => setScore(e.target.value)}
-            placeholder="e.g. 85"
-            autoFocus
-          />
-          <Input
-            label="Out of"
-            type="number"
-            min={1}
-            value={maxScore}
-            onChange={e => setMaxScore(e.target.value)}
-            placeholder="100"
-          />
-        </div>
-        {pct && (
-          <div className="bg-slate-100 dark:bg-ink-900/60 border border-slate-200 dark:border-ink-700/40 rounded-xl px-4 py-3 text-center">
-            <span className="font-mono font-bold text-2xl text-emerald-600 dark:text-emerald-400">{pct}%</span>
-            {test && (
-              <p className="text-xs text-slate-500 mt-0.5">
-                {parseFloat(pct) >= test.targetScore ? '✓ Passes target' : `✗ Below ${test.targetScore}% target`}
-              </p>
-            )}
-          </div>
-        )}
-        <Input
-          label="Score/Attempt Link (optional)"
-          type="url"
-          value={link}
-          onChange={e => setLink(e.target.value)}
-          placeholder="https://..."
-        />
-        <Textarea
-          label="Notes (optional)"
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          placeholder="e.g. struggled with section 3..."
-          rows={2}
-        />
-        <div className="flex gap-2 pt-1">
-          <Button variant="ghost" fullWidth onClick={onClose}>Cancel</Button>
-          <Button variant="primary" fullWidth
-            onClick={() => onSave(parseFloat(score), parseFloat(maxScore), notes, link)}
-            disabled={!score || !maxScore || isNaN(parseFloat(score)) || isNaN(parseFloat(maxScore))}
-          >
-            Record Score
           </Button>
         </div>
       </div>
@@ -225,15 +149,13 @@ const DeleteModal: React.FC<{ open: boolean; label: string; onClose: () => void;
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const Tests: React.FC = () => {
-  const { tests, addTest, updateTest, deleteTest, addScore } = useTestsStore();
+  const { tests, addTest, updateTest, deleteTest } = useTestsStore();
   const { subjects } = useSubjectsStore();
   const { settings } = useSettingsStore();
   const { addToast } = useToastStore();
 
   const [testModal,    setTestModal]    = useState(false);
   const [editing,      setEditing]      = useState<MasteryTest | null>(null);
-  const [scoreModal,   setScoreModal]   = useState(false);
-  const [scoringTest,  setScoringTest]  = useState<MasteryTest | null>(null);
   const [delModal,     setDelModal]     = useState(false);
   const [delTarget,    setDelTarget]    = useState<MasteryTest | null>(null);
   const [search,       setSearch]       = useState('');
@@ -277,18 +199,7 @@ export const Tests: React.FC = () => {
     setEditing(null);
   };
 
-  const handleAddScore = (score: number, maxScore: number, notes: string, link: string) => {
-    if (scoringTest) {
-      addScore(scoringTest.id, score, maxScore, notes || undefined, link || undefined);
-      const pct = ((score / maxScore) * 100).toFixed(1);
-      addToast(`Score recorded: ${pct}%`);
-    }
-    setScoreModal(false);
-    setScoringTest(null);
-  };
-
-  const openAddScore = (t: MasteryTest) => { setScoringTest(t); setScoreModal(true); };
-  const openEdit     = (t: MasteryTest) => { setEditing(t); setTestModal(true); };
+  const openEdit = (t: MasteryTest) => { setEditing(t); setTestModal(true); };
 
   const requestDelete = (t: MasteryTest) => { setDelTarget(t); setDelModal(true); };
   const confirmDelete = () => {
@@ -351,7 +262,6 @@ export const Tests: React.FC = () => {
               test={test}
               onEdit={openEdit}
               onDelete={id => { const t = tests.find(t => t.id === id); if (t) requestDelete(t); }}
-              onAddScore={openAddScore}
             />
           ))}
         </div>
@@ -364,12 +274,6 @@ export const Tests: React.FC = () => {
         subjects={subjects}
         onClose={() => { setTestModal(false); setEditing(null); }}
         onSave={handleSaveTest}
-      />
-      <ScoreModal
-        open={scoreModal}
-        test={scoringTest}
-        onClose={() => { setScoreModal(false); setScoringTest(null); }}
-        onSave={handleAddScore}
       />
       <DeleteModal
         open={delModal}

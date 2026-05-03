@@ -197,10 +197,13 @@ export async function pullAll(userId: string): Promise<RemoteData | null> {
       })),
       topics: remoteTopics,
       sessions: (sesR.data ?? []).map((r: any) => ({
-        id: r.id, date: r.date, subjectId: r.subject_id, topicLabel: r.topic_label,
+        id: r.id, date: r.date, subjectId: r.subject_id,
+        subjectEnabled: r.subject_enabled ?? true,
+        topicLabel: r.topic_label,
         attendanceStatus: r.attendance_status, reviews: r.reviews,
         totalReviews: r.total_reviews, notes: r.notes ?? undefined,
         notesLink: r.notes_link ?? undefined,
+        tags: r.tags ?? [],
         weeklyTest: r.weekly_test ?? undefined, createdAt: r.created_at,
       })),
       tests: (testR.data ?? []).map((r: any) => ({

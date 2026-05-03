@@ -6,6 +6,7 @@ import type { ExamDate } from '../types';
 
 interface Props {
   onComplete: () => void;
+  onGoToLogin: () => void;
 }
 
 const STEPS = ['Profile', 'Exam Dates', 'Preferences'] as const;
@@ -33,7 +34,7 @@ function SmallNumberInput({
   );
 }
 
-export const Onboarding: React.FC<Props> = ({ onComplete }) => {
+export const Onboarding: React.FC<Props> = ({ onComplete, onGoToLogin }) => {
   const { updateSettings } = useSettingsStore();
 
   const [step, setStep] = useState(0);
@@ -330,35 +331,46 @@ export const Onboarding: React.FC<Props> = ({ onComplete }) => {
       {/* Navigation */}
       <div className="relative px-5 py-4 border-t border-slate-200 dark:border-ink-800/60
         bg-white/80 dark:bg-ink-950/80 backdrop-blur-sm">
-        <div className="max-w-md mx-auto flex gap-3">
-          {step > 0 ? (
-            <button
-              onClick={back}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl
-                bg-slate-100 dark:bg-ink-800 border border-slate-200 dark:border-ink-700/50
-                text-sm font-body font-medium text-slate-600 dark:text-slate-400
-                hover:bg-slate-200 dark:hover:bg-ink-700 transition-all active:scale-95"
-            >
-              <ChevronLeft size={16} />
-              Back
-            </button>
-          ) : (
-            <div className="flex-1" />
-          )}
+        <div className="max-w-md mx-auto flex flex-col gap-3">
+          <div className="flex gap-3">
+            {step > 0 ? (
+              <button
+                onClick={back}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl
+                  bg-slate-100 dark:bg-ink-800 border border-slate-200 dark:border-ink-700/50
+                  text-sm font-body font-medium text-slate-600 dark:text-slate-400
+                  hover:bg-slate-200 dark:hover:bg-ink-700 transition-all active:scale-95"
+              >
+                <ChevronLeft size={16} />
+                Back
+              </button>
+            ) : (
+              <div className="flex-1" />
+            )}
 
-          <button
-            onClick={next}
-            disabled={!canNext}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-              text-sm font-body font-semibold transition-all active:scale-95
-              disabled:opacity-40 disabled:cursor-not-allowed
-              ${step === STEPS.length - 1
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-glow-emerald/20'
-                : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-glow-emerald/20'}`}
-          >
-            {step === STEPS.length - 1 ? "Let's go!" : 'Next'}
-            {step < STEPS.length - 1 && <ChevronRight size={16} />}
-          </button>
+            <button
+              onClick={next}
+              disabled={!canNext}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+                text-sm font-body font-semibold transition-all active:scale-95
+                disabled:opacity-40 disabled:cursor-not-allowed
+                bg-emerald-500 hover:bg-emerald-600 text-white"
+            >
+              {step === STEPS.length - 1 ? "Let's go!" : 'Next'}
+              {step < STEPS.length - 1 && <ChevronRight size={16} />}
+            </button>
+          </div>
+
+          {/* Returning user link — always visible */}
+          <p className="text-center text-xs font-body text-slate-400 dark:text-slate-500">
+            Already have an account?{' '}
+            <button
+              onClick={onGoToLogin}
+              className="text-emerald-600 dark:text-emerald-400 font-medium hover:underline transition-colors"
+            >
+              Sign in
+            </button>
+          </p>
         </div>
       </div>
     </div>

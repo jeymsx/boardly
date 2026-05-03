@@ -15,14 +15,16 @@ interface SessionsStore {
   addSession: (params: {
     date: string;
     subjectId: string;
+    subjectEnabled: boolean;
     topicLabel: string;
     totalReviews: number;
     reviewIntervals: number[];
     autoGenerate: boolean;
     notesLink?: string;
+    tags?: string[];
   }) => Session;
 
-  updateSession: (id: string, patch: Partial<Pick<Session, 'date' | 'subjectId' | 'topicLabel' | 'notes' | 'notesLink' | 'totalReviews'>>) => void;
+  updateSession: (id: string, patch: Partial<Pick<Session, 'date' | 'subjectId' | 'subjectEnabled' | 'topicLabel' | 'notes' | 'notesLink' | 'totalReviews' | 'tags'>>) => void;
   deleteSession: (id: string) => void;
 
   cycleAttendance:   (id: string) => void;
@@ -37,6 +39,8 @@ interface SessionsStore {
   updateWeeklyScore: (sessionId: string, scoreId: string, patch: { score?: number; maxScore?: number; link?: string }) => void;
   deleteWeeklyScore: (sessionId: string, scoreId: string) => void;
   updateWeeklyTest:  (sessionId: string, patch: { link?: string }) => void;
+
+  removeTagFromSessions: (tagId: string) => void;
 }
 
 function buildReviews(sessionId: string, dates: string[]): ReviewEntry[] {
@@ -57,16 +61,17 @@ function persist(sessions: Session[]) {
 export const useSessionsStore = create<SessionsStore>((set, get) => ({
   sessions: storage.get<Session[]>('sessions', []),
 
-  addSession: ({ date, subjectId, topicLabel, totalReviews, reviewIntervals, autoGenerate, notesLink }) => {
+  addSession: ({ date, subjectId, subjectEnabled, topicLabel, totalReviews, reviewIntervals, autoGenerate, notesLink, tags }) => {
     const id = uuid();
     const intervals = reviewIntervals.slice(0, totalReviews);
     const reviews = autoGenerate ? buildReviews(id, generateReviewDates(date, intervals)) : [];
     const session: Session = {
-      id, date, subjectId, topicLabel,
+      id, date, subjectId, subjectEnabled: subjectEnabled ?? true, topicLabel,
       attendanceStatus: 'pending',
       reviews,
       totalReviews,
       notesLink,
+      tags: tags ?? [],
       weeklyTest: { scores: [] },
       createdAt: new Date().toISOString(),
     };
@@ -276,6 +281,18 @@ export const useSessionsStore = create<SessionsStore>((set, get) => ({
         const wt = s.weeklyTest ?? { scores: [] };
         return { ...s, weeklyTest: { ...wt, ...patch } };
       });
+      persist(sessions);
+      return { sessions };
+    });
+    scheduleSessionsSync(get().sessions);
+  },
+
+  removeTagFromSessions: (tagId) => {
+    set(state => {
+      const sessions = state.sessions.map(s => ({
+        ...s,
+        tags: (s.tags ?? []).filter(t => t !== tagId),
+      }));
       persist(sessions);
       return { sessions };
     });
