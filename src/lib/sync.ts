@@ -128,12 +128,12 @@ export function scheduleSessionsSync(sessions: Session[]) {
 export function scheduleTestsSync(tests: MasteryTest[]) {
   if (!_userId || !_syncEnabled) return;
   const userId = _userId;
-  const rows = tests.map(t => ({
+  const rows = tests.map((t, i) => ({
     id: t.id, user_id: userId, name: t.name,
     subject_id: t.subjectId ?? null, subject_enabled: t.subjectEnabled,
     topic_label: t.topicLabel ?? null, topic_id: t.topicId ?? null,
     target_score: t.targetScore, link: t.link ?? null, scores: t.scores,
-    tags: t.tags ?? [],
+    tags: t.tags ?? [], position: i,
     created_at: t.createdAt, updated_at: ts(),
   }));
   const ids = tests.map(t => t.id);
@@ -218,7 +218,7 @@ export async function pullAll(userId: string): Promise<RemoteData | null> {
       supabase.from('subjects').select('*').eq('user_id', userId),
       supabase.from('topics').select('*').eq('user_id', userId),
       supabase.from('sessions').select('*').eq('user_id', userId),
-      supabase.from('mastery_tests').select('*').eq('user_id', userId),
+      supabase.from('mastery_tests').select('*').eq('user_id', userId).order('position', { ascending: true }).order('created_at', { ascending: true }),
       supabase.from('calendar_events').select('*').eq('user_id', userId),
       supabase.from('user_settings').select('data').eq('user_id', userId).maybeSingle(),
       supabase.from('tags').select('*').eq('user_id', userId),

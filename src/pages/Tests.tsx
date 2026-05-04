@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Plus, FlaskConical, Search, SlidersHorizontal, X, Tag, Pencil, Trash2 } from 'lucide-react';
+import { Plus, FlaskConical, Search, SlidersHorizontal, X, Tag, Pencil, Trash2, GripVertical } from 'lucide-react';
 import { useTestsStore } from '../store/useTestsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -51,9 +51,10 @@ const TestModal: React.FC<TestModalProps> = ({
   const [selectedTags,   setSelectedTags]   = useState<string[]>(initial?.tags ?? []);
   const [newTagInput,    setNewTagInput]    = useState('');
   const newTagRef = useRef<HTMLInputElement>(null);
+  const prevOpen  = useRef(false);
 
   React.useEffect(() => {
-    if (open) {
+    if (open && !prevOpen.current) {
       setName(initial?.name ?? '');
       setSubjectId(initial?.subjectId ?? (subjects[0]?.id ?? ''));
       setSubjectEnabled(initial?.subjectEnabled ?? true);
@@ -63,6 +64,7 @@ const TestModal: React.FC<TestModalProps> = ({
       setSelectedTags(initial?.tags ?? []);
       setNewTagInput('');
     }
+    prevOpen.current = open;
   }, [open, initial, defaultTarget, subjects]);
 
   const toggleTag = (id: string) => {
@@ -472,7 +474,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ open, filters, subjects, onCh
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const Tests: React.FC = () => {
-  const { tests, addTest, updateTest, deleteTest } = useTestsStore();
+  const { tests, addTest, updateTest, deleteTest, reorderTests } = useTestsStore();
   const { subjects } = useSubjectsStore();
   const { settings } = useSettingsStore();
   const { tags: allTags } = useTestTagsStore();
@@ -487,8 +489,11 @@ export const Tests: React.FC = () => {
   const [filterOpen,   setFilterOpen]   = useState(false);
   const [filters,      setFilters]      = useState<ActiveFilters>({ subjectIds: [], tagIds: [] });
   const [activeTag,    setActiveTag]    = useState<string | null>(null);
+  const [dragId,       setDragId]       = useState<string | null>(null);
+  const [dragOverId,   setDragOverId]   = useState<string | null>(null);
 
   const activeFilterCount = filters.subjectIds.length + filters.tagIds.length;
+  const canDrag = !search.trim() && filters.subjectIds.length === 0 && filters.tagIds.length === 0;
 
   const filteredTests = useMemo(() => {
     let result = [...tests];
@@ -554,6 +559,36 @@ export const Tests: React.FC = () => {
     setEditing(null);
   };
 
+  const handleDragEnd = () => {
+    if (dragId && dragOverId && canDrag) {
+      const filteredIds = filteredTests.map(t => t.id);
+      const fromIdx = filteredIds.indexOf(dragId);
+      const toIdx   = dragOverId === '__END__' ? filteredIds.length : filteredIds.indexOf(dragOverId);
+      if (fromIdx !== -1 && toIdx !== fromIdx && toIdx !== fromIdx + 1) {
+        const next = [...filteredIds];
+        const [moved] = next.splice(fromIdx, 1);
+        const insertAt = dragOverId === '__END__' ? next.length : next.indexOf(dragOverId);
+        next.splice(insertAt, 0, moved);
+
+        if (activeTag) {
+          // Merge reordered subset back into the full list to avoid dropping non-filtered tests
+          const allIds = tests.map(t => t.id);
+          const positions = allIds.reduce<number[]>((acc, id, i) => {
+            if (filteredIds.includes(id)) acc.push(i);
+            return acc;
+          }, []);
+          const newAllIds = [...allIds];
+          positions.forEach((pos, i) => { newAllIds[pos] = next[i]; });
+          reorderTests(newAllIds);
+        } else {
+          reorderTests(next);
+        }
+      }
+    }
+    setDragId(null);
+    setDragOverId(null);
+  };
+
   const openEdit = (t: MasteryTest) => { setEditing(t); setTestModal(true); };
 
   const requestDelete = (t: MasteryTest) => { setDelTarget(t); setDelModal(true); };
@@ -577,7 +612,7 @@ export const Tests: React.FC = () => {
 
       {/* Filter + Search row */}
       {tests.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4">
           <div className="relative flex-1">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
             <input
@@ -600,7 +635,7 @@ export const Tests: React.FC = () => {
                 : 'bg-white dark:bg-ink-800/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-ink-700/50 hover:border-slate-300 dark:hover:border-ink-600/60'}`}
           >
             <SlidersHorizontal size={13} />
-            Filters
+            <span className="hidden sm:inline">Filters</span>
             {activeFilterCount > 0 && (
               <span className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-mono font-bold
                 bg-emerald-500 text-white">
@@ -616,9 +651,9 @@ export const Tests: React.FC = () => {
               border-slate-200 dark:border-ink-700/50 hover:border-slate-300 dark:hover:border-ink-600/60"
           >
             <Tag size={13} />
-            Tags
+            <span className="hidden sm:inline">Tags</span>
             {allTags.length > 0 && (
-              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600">
+              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 hidden sm:inline">
                 {allTags.length}
               </span>
             )}
@@ -712,15 +747,48 @@ export const Tests: React.FC = () => {
           description={search ? `No tests matching "${search}".` : 'No tests matching your filters.'}
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {filteredTests.map(test => (
-            <TestCard
-              key={test.id}
-              test={test}
-              onEdit={openEdit}
-              onDelete={id => { const t = tests.find(t => t.id === id); if (t) requestDelete(t); }}
-            />
+        <div className="flex flex-col">
+          {filteredTests.map((test) => (
+            <React.Fragment key={test.id}>
+              {/* Drop indicator line above this card */}
+              {canDrag && dragOverId === test.id && dragId !== test.id && (
+                <div className="h-0.5 bg-emerald-400 dark:bg-emerald-500 rounded-full mx-1 mb-1 transition-all" />
+              )}
+              <div
+                draggable={canDrag}
+                onDragStart={() => { if (canDrag) setDragId(test.id); }}
+                onDragOver={e => { if (canDrag) { e.preventDefault(); setDragOverId(test.id); } }}
+                onDragEnd={handleDragEnd}
+                onDrop={e => e.preventDefault()}
+                className={`group relative mb-3 transition-opacity ${
+                  dragId === test.id ? 'opacity-40' : 'opacity-100'
+                } ${canDrag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              >
+                <TestCard
+                  test={test}
+                  onEdit={openEdit}
+                  onDelete={id => { const t = tests.find(t => t.id === id); if (t) requestDelete(t); }}
+                />
+                {canDrag && (
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    <GripVertical size={14} className="text-slate-300 dark:text-slate-600" />
+                  </div>
+                )}
+              </div>
+            </React.Fragment>
           ))}
+          {/* Drop indicator at end of list */}
+          {canDrag && dragId && dragOverId === '__END__' && (
+            <div className="h-0.5 bg-emerald-400 dark:bg-emerald-500 rounded-full mx-1 mb-1" />
+          )}
+          {/* Invisible end drop zone */}
+          {canDrag && dragId && (
+            <div
+              className="h-6"
+              onDragOver={e => { e.preventDefault(); setDragOverId('__END__'); }}
+              onDrop={e => e.preventDefault()}
+            />
+          )}
         </div>
       )}
 

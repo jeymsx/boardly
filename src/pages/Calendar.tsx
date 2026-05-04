@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, GraduationCap, Clock, CalendarDays, Plus, Trash2 } from 'lucide-react';
-import { format, addMonths, subMonths, getDay, getDaysInMonth, startOfMonth } from 'date-fns';
+import { format, addMonths, subMonths, getDay, startOfMonth } from 'date-fns';
 import { useSessionsStore } from '../store/useSessionsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useEventsStore } from '../store/useEventsStore';
@@ -143,7 +143,6 @@ export const Calendar: React.FC = () => {
 
   const calDays  = buildCalendarMonth(current.getFullYear(), current.getMonth(), sessions, events);
   const firstDow = getDay(startOfMonth(current));
-  getDaysInMonth(current);
   const blanks   = Array.from({ length: firstDow });
 
 

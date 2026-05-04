@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Plus, GraduationCap, Search, SlidersHorizontal, X, Tag, Pencil, Trash2, LayoutGrid, List } from 'lucide-react';
+import { Plus, GraduationCap, Search, SlidersHorizontal, X, Tag, Pencil, Trash2, LayoutGrid, List, ArrowUpDown } from 'lucide-react';
 import { useSessionsStore } from '../store/useSessionsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -75,9 +75,10 @@ const SessionModal: React.FC<SessionModalProps> = ({
   const [selectedTags,   setSelectedTags]   = useState<string[]>(initial?.tags ?? []);
   const [newTagInput,    setNewTagInput]    = useState('');
   const newTagRef = useRef<HTMLInputElement>(null);
+  const prevOpen  = useRef(false);
 
   React.useEffect(() => {
-    if (open) {
+    if (open && !prevOpen.current) {
       setDateDisplay(initial?.date ? isoToDisplay(initial.date) : '');
       setSubjectEnabled(initial?.subjectEnabled ?? true);
       setSubjectId(initial?.subjectId ?? (subjects[0]?.id ?? ''));
@@ -88,6 +89,7 @@ const SessionModal: React.FC<SessionModalProps> = ({
       setSelectedTags(initial?.tags ?? []);
       setNewTagInput('');
     }
+    prevOpen.current = open;
   }, [open, initial, defaultReviews, subjects]);
 
   const toggleTag = (id: string) => {
@@ -99,10 +101,10 @@ const SessionModal: React.FC<SessionModalProps> = ({
     if (!name) return;
     const tag = addTag(name);
     if (!tag) {
-      // duplicate — just select existing
       const existing = allTags.find(t => t.name.toLowerCase() === name.toLowerCase());
       if (existing && !selectedTags.includes(existing.id)) {
         setSelectedTags(prev => [...prev, existing.id]);
+        addToast('Tag already exists — selected it instead', 'info');
       }
     } else {
       setSelectedTags(prev => [...prev, tag.id]);
@@ -561,6 +563,7 @@ export const Sessions: React.FC = () => {
   const [search,      setSearch]      = useState('');
   const [filterOpen,  setFilterOpen]  = useState(false);
   const [filters,     setFilters]     = useState<ActiveFilters>({ subjectIds: [], tagIds: [] });
+  const [sortDir,     setSortDir]     = useState<'desc' | 'asc'>('desc');
   const [view,        setView]        = useState<'card' | 'list'>('card');
   const [viewingSession, setViewingSession] = useState<Session | null>(null);
 
@@ -574,7 +577,9 @@ export const Sessions: React.FC = () => {
   const activeFilterCount = filters.subjectIds.length + filters.tagIds.length;
 
   const filtered = useMemo(() => {
-    const sorted = [...sessions].sort((a, b) => b.date.localeCompare(a.date));
+    const sorted = [...sessions].sort((a, b) =>
+      sortDir === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)
+    );
     let result = sorted;
 
     if (status === 'upcoming') result = result.filter(s => s.date >= today);
@@ -595,8 +600,8 @@ export const Sessions: React.FC = () => {
       result = result.filter(s => {
         const subj = subjects.find(sub => sub.id === s.subjectId);
         const tagNames = (s.tags ?? [])
-          .map(id => allTags.find(t => t.id === id)?.name ?? '')
-          .filter(Boolean);
+          .map(id => allTags.find(t => t.id === id)?.name)
+          .filter((n): n is string => !!n);
         return (
           s.topicLabel.toLowerCase().includes(q) ||
           (subj?.name.toLowerCase().includes(q) ?? false) ||
@@ -606,7 +611,7 @@ export const Sessions: React.FC = () => {
     }
 
     return result;
-  }, [sessions, status, today, search, subjects, filters, allTags]);
+  }, [sessions, status, today, search, subjects, filters, allTags, sortDir]);
 
   const handleSave = (form: SessionForm) => {
     if (editing) {
@@ -720,6 +725,17 @@ export const Sessions: React.FC = () => {
                 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all"
             />
           </div>
+
+          <button
+            onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+            title={sortDir === 'desc' ? 'Newest first — click for oldest first' : 'Oldest first — click for newest first'}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-body font-medium border transition-all shrink-0
+              bg-white dark:bg-ink-800/60 text-slate-500 dark:text-slate-400
+              border-slate-200 dark:border-ink-700/50 hover:border-slate-300 dark:hover:border-ink-600/60"
+          >
+            <ArrowUpDown size={13} />
+            <span className="hidden sm:inline">{sortDir === 'desc' ? 'Newest' : 'Oldest'}</span>
+          </button>
 
           <button
             onClick={() => setFilterOpen(true)}

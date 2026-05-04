@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Pencil, Trash2, TrendingUp, TrendingDown, Minus,
-  Target, Trophy, ExternalLink,
+  Pencil, Trash2, Target, Trophy, ExternalLink,
 } from 'lucide-react';
 import { useTestsStore } from '../store/useTestsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useTestTagsStore } from '../store/useTestTagsStore';
 import { useToastStore } from '../store/useToastStore';
-import { highestScore, latestScore, averageScore, scoreTrend, passedTarget } from '../utils/scores';
+import { highestScore, latestScore, averageScore, passedTarget } from '../utils/scores';
 import { formatDate } from '../utils/dates';
 import { ProgressBar } from './ui/ProgressBar';
 import { Modal } from './ui/Modal';
@@ -246,7 +245,12 @@ const TestDetailModal: React.FC<TestDetailModalProps> = ({
     : -Infinity;
 
   const pctPreview = score && maxScore
-    ? ((parseFloat(score) / parseFloat(maxScore)) * 100).toFixed(1)
+    ? (() => {
+        const s = parseFloat(score);
+        const m = parseFloat(maxScore);
+        if (isNaN(s) || isNaN(m) || m === 0) return null;
+        return ((s / m) * 100).toFixed(1);
+      })()
     : null;
 
   const resolvedTags = (test.tags ?? []).map(id => allTags.find(t => t.id === id)).filter(Boolean) as { id: string; name: string }[];
@@ -516,17 +520,9 @@ export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
   const hi     = highestScore(test.scores);
   const latest = latestScore(test.scores);
   const avg    = averageScore(test.scores);
-  const trend  = scoreTrend(test.scores);
   const passed = passedTarget(test.scores, test.targetScore);
 
   const resolvedTags = (test.tags ?? []).map(id => allTags.find(t => t.id === id)).filter(Boolean) as { id: string; name: string }[];
-
-  const TrendIcon  = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
-  const trendColor = trend === 'up'
-    ? 'text-emerald-600 dark:text-jade-400'
-    : trend === 'down'
-    ? 'text-rose-500 dark:text-rose-400'
-    : 'text-slate-400 dark:text-slate-500';
 
   return (
     <>
@@ -595,18 +591,12 @@ export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 mt-2.5">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between gap-2 mt-2.5">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Target size={12} className="text-slate-400 dark:text-slate-600" />
                 <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">Target: {test.targetScore}%</span>
               </div>
-              {latest !== null && (
-                <div className="flex items-center gap-1">
-                  <TrendIcon size={12} className={trendColor} />
-                  <span className={`text-xs font-mono font-semibold ${trendColor}`}>{latest.toFixed(1)}%</span>
-                </div>
-              )}
-              <div className="ml-auto flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {avg !== null && (
                   <span className="text-xs font-mono text-slate-500 dark:text-slate-500">
                     Avg: {avg.toFixed(1)}%

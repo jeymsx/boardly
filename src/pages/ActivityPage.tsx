@@ -205,7 +205,7 @@ export const ActivityPage: React.FC<Props> = ({ onBack }) => {
       });
     });
 
-    return items.sort((a, b) => b.ts.localeCompare(a.ts));
+    return items.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 50);
   }, [subjects, topics, sessions, tests]);
 
   // Filter the feed based on active chips (empty = show all)

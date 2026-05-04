@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   BookOpen, GraduationCap, FlaskConical, TrendingUp,
-  CalendarDays, CheckCircle2, Clock, ChevronRight, Activity,
+  CalendarDays, CheckCircle2, Clock, ChevronRight,
   Plus, BookMarked, RotateCcw, Bookmark, Star, Trash2, ExternalLink, Link2,
 } from 'lucide-react';
 import { useSubjectsStore } from '../store/useSubjectsStore';
@@ -15,7 +15,7 @@ import { useToastStore } from '../store/useToastStore';
 import { Modal } from '../components/ui/Modal';
 import { overallProgress, subjectProgress, pctNum } from '../utils/progress';
 import { highestScore, latestScore } from '../utils/scores';
-import { upcomingEvents, formatDay, isToday, daysUntil } from '../utils/dates';
+import { upcomingEvents, formatDay, isToday, daysUntil, todayISO } from '../utils/dates';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { ActivityPage } from './ActivityPage';
 import { COLOR_MAP } from '../types';
@@ -163,6 +163,7 @@ const AddBookmarkModal: React.FC<{ open: boolean; onClose: () => void }> = ({ op
     }
     addBookmark({ title: title.trim(), url: finalUrl, icon: icon.trim() || undefined });
     addToast('Bookmark saved');
+    setTitle(''); setUrl(''); setIcon('');
     onClose();
   };
 
@@ -244,13 +245,20 @@ export const Dashboard: React.FC = () => {
 
   const attendedSessions = sessions.filter(s => s.attendanceStatus === 'attended').length;
 
-  // Upcoming sessions + reviews with attendance status on sessions
+  // Upcoming sessions, reviews, events, exam dates — next 7 days
+  const today7 = todayISO();
+  const cutoff7 = (() => {
+    const d = new Date(today7);
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  })();
+
   const upcomingAll = [
     ...upcomingSessions.map(s => ({
       type: 'session' as const,
       date: s.date,
       label: s.topicLabel,
-      subjectId: s.subjectId,
+      subjectId: s.subjectId as string | undefined,
       id: s.id,
       attendanceStatus: s.attendanceStatus,
     })),
@@ -258,11 +266,31 @@ export const Dashboard: React.FC = () => {
       type: 'review' as const,
       date: r.scheduledDate as string,
       label: `Review: ${r.sessionLabel}`,
-      subjectId: r.subjectId,
+      subjectId: r.subjectId as string | undefined,
       id: r.id,
       attendanceStatus: undefined,
     })),
-  ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+    ...events
+      .filter(e => e.date >= today7 && e.date <= cutoff7)
+      .map(e => ({
+        type: 'event' as const,
+        date: e.date,
+        label: e.title,
+        subjectId: e.subjectId as string | undefined,
+        id: e.id,
+        attendanceStatus: undefined,
+      })),
+    ...(settings.examDates ?? [])
+      .filter(ed => ed.date >= today7 && ed.date <= cutoff7)
+      .map(ed => ({
+        type: 'exam' as const,
+        date: ed.date,
+        label: ed.label || settings.boardExamName || 'Board Exam',
+        subjectId: undefined,
+        id: ed.id,
+        attendanceStatus: undefined,
+      })),
+  ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 10);
 
   // 7-day week summary grid
   const weekDays = React.useMemo(() => {
@@ -303,10 +331,10 @@ export const Dashboard: React.FC = () => {
     }),
   [bookmarks]);
 
-  // Activity feed — derived from existing data, newest first
+  // Clock feed — derived from existing data, newest first
   const activityFeed = useMemo(() => {
-    type ActivityItem = { id: string; ts: string; icon: React.ReactNode; label: string; sub?: string; color: string };
-    const items: ActivityItem[] = [];
+    type ClockItem = { id: string; ts: string; icon: React.ReactNode; label: string; sub?: string; color: string };
+    const items: ClockItem[] = [];
 
     subjects.forEach(s => {
       items.push({ id: `subj-${s.id}`, ts: s.createdAt, icon: <BookOpen size={13} />, label: `Added subject: ${s.name}`, color: 'emerald' });
@@ -341,7 +369,7 @@ export const Dashboard: React.FC = () => {
       });
     });
 
-    return items.sort((a, b) => b.ts.localeCompare(a.ts));
+    return items.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 50);
   }, [subjects, topics, sessions, tests]);
 
   if (showActivity) {
@@ -362,7 +390,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Hero progress + Countdown — side by side when countdown exists */}
       <div className={`mb-5 ${examDates.length > 0 ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}`}>
-        <div className="rounded-2xl p-5 relative overflow-hidden shadow-glow-emerald
+        <div className="rounded-2xl p-5 relative overflow-hidden
           bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-ink-800 dark:to-ink-900
           border border-emerald-500/30 dark:border-emerald-500/20"
         >
@@ -616,30 +644,36 @@ export const Dashboard: React.FC = () => {
                 const subject   = subjects.find(s => s.id === item.subjectId);
                 const colors    = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
                 const todayFlag = isToday(item.date);
+
+                const iconBg =
+                  item.type === 'session' ? 'bg-sky-50 dark:bg-sky-500/15' :
+                  item.type === 'exam'    ? 'bg-rose-50 dark:bg-rose-500/15' :
+                  item.type === 'event'   ? 'bg-violet-50 dark:bg-violet-500/15' :
+                  'bg-emerald-50 dark:bg-emerald-500/15';
+                const icon =
+                  item.type === 'session' ? <GraduationCap size={14} className="text-sky-500 dark:text-sky-400" /> :
+                  item.type === 'exam'    ? <CalendarDays size={14} className="text-rose-500 dark:text-rose-400" /> :
+                  item.type === 'event'   ? <CalendarDays size={14} className="text-violet-500 dark:text-violet-400" /> :
+                  <Clock size={14} className="text-emerald-600 dark:text-emerald-400" />;
+
                 return (
                   <div key={item.id + item.type}
                     className="flex items-center gap-3 py-2 px-3 rounded-lg
                       bg-slate-50 dark:bg-ink-900/40 border border-slate-200 dark:border-ink-700/40"
                   >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0
-                      ${item.type === 'session' ? 'bg-sky-50 dark:bg-sky-500/15' : 'bg-emerald-50 dark:bg-emerald-500/15'}`}>
-                      {item.type === 'session'
-                        ? <GraduationCap size={14} className="text-sky-500 dark:text-sky-400" />
-                        : <Clock size={14} className="text-emerald-600 dark:text-emerald-400" />}
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                      {icon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-body font-medium text-slate-700 dark:text-slate-300 truncate">{item.label}</p>
-                      {subject && <p className={`text-[10px] ${colors.text} truncate`}>{subject.name}</p>}
+                      <p className={`text-[10px] font-mono truncate ${todayFlag ? 'text-sky-600 dark:text-sky-400 font-semibold' : 'text-slate-400 dark:text-slate-600'}`}>
+                        {todayFlag ? 'Today' : formatDay(item.date)}
+                        {subject && <span className={`ml-1.5 ${colors.text}`}>· {subject.name}</span>}
+                      </p>
                     </div>
-                    <div className="text-right shrink-0">
-                      {item.type === 'session' && item.attendanceStatus ? (
+                    <div className="shrink-0">
+                      {item.type === 'session' && item.attendanceStatus && (
                         <AttendanceBadge status={item.attendanceStatus} isToday={todayFlag} />
-                      ) : todayFlag ? (
-                        <span className="text-[10px] font-mono font-bold text-sky-700 dark:text-sky-400
-                          bg-sky-100 dark:bg-sky-500/15 border border-sky-300 dark:border-sky-500/25
-                          rounded-full px-1.5 py-0.5">TODAY</span>
-                      ) : (
-                        <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600">{formatDay(item.date)}</span>
                       )}
                     </div>
                   </div>
@@ -789,11 +823,11 @@ export const Dashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Activity Feed */}
+      {/* Clock Feed */}
       <div className="mt-4 bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
         rounded-xl overflow-hidden shadow-card dark:shadow-none">
         <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center gap-2">
-          <Activity size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <Clock size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           <h2 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200">Activity</h2>
           <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 ml-1">
             {activityFeed.length} event{activityFeed.length !== 1 ? 's' : ''}
@@ -808,7 +842,7 @@ export const Dashboard: React.FC = () => {
         </div>
         {activityFeed.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <Activity size={24} className="text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+            <Clock size={24} className="text-slate-300 dark:text-slate-700 mx-auto mb-2" />
             <p className="text-sm text-slate-400 dark:text-slate-600">No activity yet. Start adding subjects and sessions!</p>
           </div>
         ) : (

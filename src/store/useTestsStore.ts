@@ -6,12 +6,13 @@ import { type MasteryTest, type ScoreEntry } from '../types';
 
 interface TestsStore {
   tests: MasteryTest[];
-  addTest:     (params: { name: string; subjectId?: string; subjectEnabled: boolean; topicLabel?: string; targetScore: number; link?: string; tags?: string[] }) => MasteryTest;
-  updateTest:  (id: string, patch: Partial<Pick<MasteryTest, 'name' | 'subjectId' | 'subjectEnabled' | 'topicLabel' | 'targetScore' | 'link' | 'tags'>>) => void;
-  deleteTest:  (id: string) => void;
-  addScore:    (testId: string, score: number, maxScore: number, notes?: string, link?: string) => void;
-  updateScore: (testId: string, scoreId: string, patch: { score?: number; maxScore?: number; link?: string }) => void;
-  deleteScore: (testId: string, scoreId: string) => void;
+  addTest:        (params: { name: string; subjectId?: string; subjectEnabled: boolean; topicLabel?: string; targetScore: number; link?: string; tags?: string[] }) => MasteryTest;
+  updateTest:     (id: string, patch: Partial<Pick<MasteryTest, 'name' | 'subjectId' | 'subjectEnabled' | 'topicLabel' | 'targetScore' | 'link' | 'tags'>>) => void;
+  deleteTest:     (id: string) => void;
+  reorderTests:   (orderedIds: string[]) => void;
+  addScore:       (testId: string, score: number, maxScore: number, notes?: string, link?: string) => void;
+  updateScore:    (testId: string, scoreId: string, patch: { score?: number; maxScore?: number; link?: string }) => void;
+  deleteScore:    (testId: string, scoreId: string) => void;
   removeTagFromTests: (tagId: string) => void;
 }
 
@@ -44,6 +45,16 @@ export const useTestsStore = create<TestsStore>((set, get) => ({
   deleteTest: (id) => {
     set(state => {
       const tests = state.tests.filter(t => t.id !== id);
+      storage.set('tests', tests);
+      return { tests };
+    });
+    scheduleTestsSync(get().tests);
+  },
+
+  reorderTests: (orderedIds) => {
+    set(state => {
+      const byId = new Map(state.tests.map(t => [t.id, t]));
+      const tests = orderedIds.map(id => byId.get(id)).filter((t): t is MasteryTest => !!t);
       storage.set('tests', tests);
       return { tests };
     });

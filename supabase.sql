@@ -95,6 +95,9 @@ ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tags jsonb NOT NULL DEFAULT '[]';
 -- Fix mastery_tests table (missing tags column)
 ALTER TABLE mastery_tests ADD COLUMN IF NOT EXISTS tags jsonb NOT NULL DEFAULT '[]';
 
+-- Add position column for drag-and-drop ordering
+ALTER TABLE mastery_tests ADD COLUMN IF NOT EXISTS position integer NOT NULL DEFAULT 0;
+
 -- Create session tags table
 CREATE TABLE IF NOT EXISTS tags (
   id          uuid        PRIMARY KEY,

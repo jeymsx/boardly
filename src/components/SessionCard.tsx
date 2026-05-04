@@ -199,6 +199,9 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                           type="date"
                           value={tempDate}
                           onChange={e => setTempDate(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); handleDateSave(i); }
+                          }}
                           className="text-xs font-mono bg-white dark:bg-ink-800 border border-slate-200 dark:border-ink-600/60
                             rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 w-full"
                         />

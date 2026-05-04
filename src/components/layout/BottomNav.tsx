@@ -33,7 +33,7 @@ export const BottomNav: React.FC = () => {
             <button
               key={item.page}
               onClick={() => navigate(item.page)}
-              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 px-1 transition-all active:scale-90
+              className={`relative flex-1 flex flex-col items-center gap-0.5 py-2.5 px-1 transition-all active:scale-90
                 ${active
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}

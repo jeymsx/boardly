@@ -4,7 +4,7 @@ import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useToastStore } from '../store/useToastStore';
 import { topicProgress, pctNum } from '../utils/progress';
 import { ProgressBar } from './ui/ProgressBar';
-import { COLOR_MAP } from '../types';
+import { COLOR_MAP, READ_STATUS_ORDER } from '../types';
 import type { Topic, Subject, ReadStatus } from '../types';
 
 const READ_STATUS_ICONS: Record<ReadStatus, string> = {
@@ -91,8 +91,8 @@ export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete })
                 key={read.id}
                 onClick={() => {
                   if (isDisabled) return;
-                  const nextStatuses: ReadStatus[] = ['in-progress', 'done', 'pending'];
-                  const next = nextStatuses[['pending', 'in-progress', 'done'].indexOf(read.status)];
+                  const cur  = READ_STATUS_ORDER.indexOf(read.status);
+                  const next = READ_STATUS_ORDER[(cur + 1) % READ_STATUS_ORDER.length];
                   cycleReadStatus(topic.id, i);
                   if (next === 'done') addToast(`Read ${read.readNumber} completed!`);
                 }}
