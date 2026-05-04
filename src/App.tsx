@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp } from 'lucide-react';
 import { useNavStore } from './store/useNavStore';
 import { useThemeStore } from './store/useThemeStore';
 import { useSettingsStore } from './store/useSettingsStore';
@@ -29,10 +28,7 @@ function LoadingScreen() {
       bg-slate-50 dark:bg-ink-950">
       <div className="absolute inset-0 bg-grid-light dark:bg-grid-ink opacity-20 pointer-events-none" />
       <div className="relative flex flex-col items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center
-          shadow-glow-emerald animate-pulse">
-          <TrendingUp size={22} className="text-white stroke-[2.5]" />
-        </div>
+        <img src="/favicon.svg" alt="Boardly" className="w-12 h-12 rounded-2xl animate-pulse" />
         <span className="font-display font-bold text-lg text-slate-900 dark:text-slate-100">
           Boardly
         </span>

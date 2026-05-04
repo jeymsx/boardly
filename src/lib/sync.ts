@@ -13,6 +13,7 @@
 import { supabase } from './supabase';
 import type {
   Subject, Topic, Session, MasteryTest, CalendarEvent, AppSettings, SubjectColor,
+  Tag, Bookmark,
 } from '../types';
 
 // ─── Gate variables ───────────────────────────────────────────────────────────
@@ -110,10 +111,14 @@ export function scheduleSessionsSync(sessions: Session[]) {
   const userId = _userId;
   const rows = sessions.map(s => ({
     id: s.id, user_id: userId,
-    date: s.date, subject_id: s.subjectId, topic_label: s.topicLabel,
+    date: s.date, subject_id: s.subjectId ?? null,
+    subject_enabled: s.subjectEnabled ?? true,
+    topic_label: s.topicLabel,
     attendance_status: s.attendanceStatus, reviews: s.reviews,
     total_reviews: s.totalReviews, notes: s.notes ?? null,
-    notes_link: s.notesLink ?? null, weekly_test: s.weeklyTest ?? null,
+    notes_link: s.notesLink ?? null,
+    tags: s.tags ?? [],
+    weekly_test: s.weeklyTest ?? null,
     created_at: s.createdAt, updated_at: ts(),
   }));
   const ids = sessions.map(s => s.id);
@@ -128,6 +133,7 @@ export function scheduleTestsSync(tests: MasteryTest[]) {
     subject_id: t.subjectId ?? null, subject_enabled: t.subjectEnabled,
     topic_label: t.topicLabel ?? null, topic_id: t.topicId ?? null,
     target_score: t.targetScore, link: t.link ?? null, scores: t.scores,
+    tags: t.tags ?? [],
     created_at: t.createdAt, updated_at: ts(),
   }));
   const ids = tests.map(t => t.id);
@@ -161,6 +167,37 @@ export function scheduleSettingsSync(settings: AppSettings) {
   );
 }
 
+export function scheduleTagsSync(tags: Tag[]) {
+  if (!_userId || !_syncEnabled) return;
+  const userId = _userId;
+  const rows = tags.map(t => ({
+    id: t.id, user_id: userId, name: t.name, created_at: t.createdAt,
+  }));
+  const ids = tags.map(t => t.id);
+  schedule('tags', () => replaceTable('tags', rows, ids, userId));
+}
+
+export function scheduleTestTagsSync(tags: Tag[]) {
+  if (!_userId || !_syncEnabled) return;
+  const userId = _userId;
+  const rows = tags.map(t => ({
+    id: t.id, user_id: userId, name: t.name, created_at: t.createdAt,
+  }));
+  const ids = tags.map(t => t.id);
+  schedule('test_tags', () => replaceTable('test_tags', rows, ids, userId));
+}
+
+export function scheduleBookmarksSync(bookmarks: Bookmark[]) {
+  if (!_userId || !_syncEnabled) return;
+  const userId = _userId;
+  const rows = bookmarks.map(b => ({
+    id: b.id, user_id: userId, title: b.title, url: b.url,
+    icon: b.icon ?? null, pinned: b.pinned, created_at: b.createdAt,
+  }));
+  const ids = bookmarks.map(b => b.id);
+  schedule('bookmarks', () => replaceTable('bookmarks', rows, ids, userId));
+}
+
 // ─── Pull (remote → local on login) ──────────────────────────────────────────
 
 export interface RemoteData {
@@ -170,17 +207,23 @@ export interface RemoteData {
   tests:     MasteryTest[];
   events:    CalendarEvent[];
   settings:  AppSettings | null;
+  tags:      Tag[];
+  testTags:  Tag[];
+  bookmarks: Bookmark[];
 }
 
 export async function pullAll(userId: string): Promise<RemoteData | null> {
   try {
-    const [subR, topR, sesR, testR, evR, setR] = await Promise.all([
+    const [subR, topR, sesR, testR, evR, setR, tagR, testTagR, bookR] = await Promise.all([
       supabase.from('subjects').select('*').eq('user_id', userId),
       supabase.from('topics').select('*').eq('user_id', userId),
       supabase.from('sessions').select('*').eq('user_id', userId),
       supabase.from('mastery_tests').select('*').eq('user_id', userId),
       supabase.from('calendar_events').select('*').eq('user_id', userId),
       supabase.from('user_settings').select('data').eq('user_id', userId).maybeSingle(),
+      supabase.from('tags').select('*').eq('user_id', userId),
+      supabase.from('test_tags').select('*').eq('user_id', userId),
+      supabase.from('bookmarks').select('*').eq('user_id', userId),
     ]);
 
     const remoteTopics: Topic[] = (topR.data ?? []).map((r: any) => ({
@@ -210,7 +253,9 @@ export async function pullAll(userId: string): Promise<RemoteData | null> {
         id: r.id, name: r.name, subjectId: r.subject_id ?? undefined,
         subjectEnabled: r.subject_enabled, topicLabel: r.topic_label ?? undefined,
         topicId: r.topic_id ?? undefined, scores: r.scores,
-        targetScore: r.target_score, link: r.link ?? undefined, createdAt: r.created_at,
+        targetScore: r.target_score, link: r.link ?? undefined,
+        tags: r.tags ?? [],
+        createdAt: r.created_at,
       })),
       events: (evR.data ?? []).map((r: any) => ({
         id: r.id, title: r.title, date: r.date,
@@ -218,6 +263,17 @@ export async function pullAll(userId: string): Promise<RemoteData | null> {
         notes: r.notes ?? undefined, color: r.color ?? undefined, createdAt: r.created_at,
       })),
       settings: setR.data?.data ?? null,
+      tags: (tagR.data ?? []).map((r: any) => ({
+        id: r.id, name: r.name, createdAt: r.created_at,
+      })),
+      testTags: (testTagR.data ?? []).map((r: any) => ({
+        id: r.id, name: r.name, createdAt: r.created_at,
+      })),
+      bookmarks: (bookR.data ?? []).map((r: any) => ({
+        id: r.id, title: r.title, url: r.url,
+        icon: r.icon ?? undefined, pinned: r.pinned ?? false,
+        createdAt: r.created_at,
+      })),
     };
   } catch (err) {
     console.warn('[sync] pullAll failed:', err);

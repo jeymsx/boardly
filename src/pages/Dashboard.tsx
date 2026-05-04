@@ -23,10 +23,26 @@ import type { AttendanceStatus, Session, CalendarEvent } from '../types';
 
 // ─── Greeting helpers ─────────────────────────────────────────────────────────
 
-const MORNING_GREETINGS   = ['Morning', 'Good morning', 'Rise and shine'];
-const AFTERNOON_GREETINGS = ['Good afternoon', 'Hey', 'Hello'];
-const EVENING_GREETINGS   = ['Good evening', 'Evening'];
-const NIGHT_GREETINGS     = ['Burning the midnight oil', 'Up late', 'Late night grind'];
+const MORNING_GREETINGS = [
+  'Good morning ☀️', 'Rise and shine 🌅', 'Morning! ☕',
+  'Up early — love the dedication 💪', 'A new day, a new chapter 📖',
+  'Ready to crush it today? 🔥', 'Morning grind starts now ⚡',
+];
+const AFTERNOON_GREETINGS = [
+  'Hey there 👋', 'Good afternoon 👋', 'Welcome back 👋',
+  'Keep the momentum going 💪', "You're on a roll 🔥",
+  'Hope the day is treating you well 👋', 'Afternoon session, let\'s go 📚',
+];
+const EVENING_GREETINGS = [
+  'Good evening 🌙', 'Evening study session 📚', 'Winding down? Make it count 🌆',
+  'Evening grind — respect 💪', 'Almost done for the day 🌇',
+  'End the day strong 🌙', 'One more session before bed 📖',
+];
+const NIGHT_GREETINGS = [
+  'Burning the midnight oil 🔥', 'Late night grind 🌙', 'Up late? You\'ve got this ⭐',
+  'Night owl mode 🦉', 'The board exam waits for no one 📖',
+  'Quiet hours, maximum focus 🌙', 'Midnight warrior 🌟',
+];
 
 function getGreeting(name: string): string {
   const hour = new Date().getHours();
@@ -36,7 +52,7 @@ function getGreeting(name: string): string {
     hour >= 18 && hour < 22 ? EVENING_GREETINGS   :
     NIGHT_GREETINGS;
   const pick = pool[Math.floor(Math.random() * pool.length)];
-  return name ? `${pick}, ${name}!` : `${pick}!`;
+  return name ? `${pick}, ${name}!` : pick;
 }
 
 const QUOTES = [
@@ -56,6 +72,29 @@ const QUOTES = [
   "The board exam is a marathon, not a sprint. Pace yourself.",
   "Today's effort is tomorrow's edge.",
 ];
+
+
+const CalendarIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 128 128" {...props}>
+    <rect x="20" y="28" width="72" height="68" rx="14" fill="#E6F7EF" />
+    <rect x="20" y="28" width="72" height="20" rx="14" fill="#22C55E" />
+    <rect x="32" y="16" width="6" height="16" rx="3" fill="#22C55E" />
+    <rect x="74" y="16" width="6" height="16" rx="3" fill="#22C55E" />
+    <g fill="#A7F3D0">
+      <rect x="30" y="54" width="10" height="8" rx="3" />
+      <rect x="46" y="54" width="10" height="8" rx="3" />
+      <rect x="62" y="54" width="10" height="8" rx="3" />
+      <rect x="30" y="68" width="10" height="8" rx="3" />
+      <rect x="46" y="68" width="10" height="8" rx="3" />
+      <rect x="62" y="68" width="10" height="8" rx="3" />
+    </g>
+    <circle cx="88" cy="84" r="18" fill="#BAE6FD" />
+    <circle cx="88" cy="84" r="14" fill="white" />
+    <line x1="88" y1="84" x2="88" y2="74" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round"/>
+    <line x1="88" y1="84" x2="96" y2="84" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round"/>
+    <rect x="82" y="64" width="12" height="6" rx="3" fill="#0EA5E9" />
+  </svg>
+);
 
 function getDailyQuote(): string {
   const dayOfYear = Math.floor(
@@ -319,69 +358,77 @@ export const Dashboard: React.FC = () => {
         </p>
       </div>
 
-      {/* Hero progress */}
-      <div className="rounded-2xl p-5 mb-5 relative overflow-hidden shadow-glow-emerald
-        bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-ink-800 dark:to-ink-900
-        border border-emerald-500/30 dark:border-emerald-500/20"
-      >
-        <div className="absolute inset-0 bg-grid-light dark:bg-grid-ink opacity-20 dark:opacity-30" />
-        <div className="relative">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-xs font-mono font-medium text-white/70 dark:text-emerald-400/70 uppercase tracking-widest mb-1">
-                Overall Progress
-              </p>
-              <p className="font-display font-bold text-4xl text-white tracking-tight">
-                {pctNum(overall)}<span className="text-xl text-white/70 dark:text-emerald-400 ml-1">%</span>
-              </p>
+      {/* Hero progress + Countdown — side by side when countdown exists */}
+      <div className={`mb-5 ${examDates.length > 0 ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}`}>
+        <div className="rounded-2xl p-5 relative overflow-hidden shadow-glow-emerald
+          bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-ink-800 dark:to-ink-900
+          border border-emerald-500/30 dark:border-emerald-500/20"
+        >
+          <div className="absolute inset-0 bg-grid-light dark:bg-grid-ink opacity-20 dark:opacity-30" />
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-xs font-mono font-medium text-white/70 dark:text-emerald-400/70 uppercase tracking-widest mb-1">
+                  Overall Progress
+                </p>
+                <p className="font-display font-bold text-4xl text-white tracking-tight">
+                  {pctNum(overall)}<span className="text-xl text-white/70 dark:text-emerald-400 ml-1">%</span>
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-white/20 dark:bg-emerald-500/15
+                border border-white/30 dark:border-emerald-500/25 flex items-center justify-center">
+                <TrendingUp size={22} className="text-white dark:text-emerald-400" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-white/20 dark:bg-emerald-500/15
-              border border-white/30 dark:border-emerald-500/25 flex items-center justify-center">
-              <TrendingUp size={22} className="text-white dark:text-emerald-400" />
-            </div>
+            <ProgressBar value={overall} size="lg" color="jade" />
+            <p className="text-xs text-white/60 dark:text-slate-500 font-body mt-2">
+              Keep going — consistent study beats cramming.
+            </p>
           </div>
-          <ProgressBar value={overall} size="lg" color="jade" />
-          <p className="text-xs text-white/60 dark:text-slate-500 font-body mt-2">
-            Keep going — consistent study beats cramming.
-          </p>
         </div>
-      </div>
 
-      {/* Exam Countdown */}
-      {examDates.length > 0 && (
-        <div className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
-          rounded-2xl overflow-hidden mb-4 shadow-card dark:shadow-none">
-          <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center gap-2">
-            <Timer size={14} className="text-emerald-600 dark:text-emerald-400" />
-            <h2 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200">
-              {settings.boardExamName || 'Board Exam'} Countdown
-            </h2>
+        {examDates.length > 0 && (
+          <div className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
+            rounded-2xl overflow-hidden shadow-card dark:shadow-none flex flex-col">
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center gap-2">
+              <CalendarDays size={14} className="text-emerald-600 dark:text-emerald-400" />
+              <h2 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                {settings.boardExamName || 'Board Exam'} Countdown
+              </h2>
+            </div>
+            <div className="flex-1 px-5 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-6 flex-wrap">
+                {examDates.map(ed => {
+                  const days = daysUntil(ed.date);
+                  const color = days === 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : days < 0
+                    ? 'text-slate-400 dark:text-slate-600'
+                    : days <= 7
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : days <= 30
+                    ? 'text-orange-600 dark:text-orange-400'
+                    : 'text-emerald-600 dark:text-emerald-400';
+                  return (
+                    <div key={ed.id}>
+                      <p className="text-xs font-body text-slate-500 dark:text-slate-400 mb-0.5">{ed.label}</p>
+                      <p className={`font-display font-bold text-5xl leading-none ${color}`}>
+                        {days < 0 ? '—' : days}
+                      </p>
+                      <p className="text-sm font-body text-slate-500 dark:text-slate-400 mt-1">
+                        {days === 0 ? 'Today!' : days < 0 ? 'Passed' : 'days left'}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="shrink-0 flex items-center justify-center">
+                <CalendarIcon className="w-24 h-24 text-emerald-500" />
+              </div>
+            </div>
           </div>
-          <div className="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:gap-6">
-            {examDates.map(ed => {
-              const days = daysUntil(ed.date);
-              const label = days === 0 ? 'Today!' : days < 0 ? 'Passed' : `${days} day${days !== 1 ? 's' : ''} left`;
-              const color = days === 0
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : days < 0
-                ? 'text-slate-400 dark:text-slate-600'
-                : days <= 7
-                ? 'text-rose-600 dark:text-rose-400'
-                : days <= 30
-                ? 'text-orange-600 dark:text-orange-400'
-                : 'text-emerald-600 dark:text-emerald-400';
-              return (
-                <div key={ed.id} className="flex items-center gap-3">
-                  <div>
-                    <p className="text-xs font-body text-slate-500 dark:text-slate-400">{ed.label}</p>
-                    <p className={`font-display font-bold text-2xl ${color}`}>{label}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
@@ -641,7 +688,7 @@ export const Dashboard: React.FC = () => {
                 return (
                   <button key={iso}
                     onClick={() => setSelectedDay(day)}
-                    className={`flex flex-col items-start rounded-xl p-1.5 gap-1.5 transition-all
+                    className={`flex flex-col items-start rounded-xl p-1.5 gap-1.5 transition-all min-h-[72px] sm:min-h-0
                       active:scale-[0.96] cursor-pointer w-full overflow-hidden
                       ${todayCard
                         ? 'bg-emerald-50 dark:bg-emerald-500/10 border-2 border-emerald-400 dark:border-emerald-500/50 hover:shadow-md'
@@ -695,7 +742,7 @@ export const Dashboard: React.FC = () => {
           <div className="lg:col-span-2 bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
             rounded-xl overflow-hidden shadow-card dark:shadow-none">
             <div className="px-4 py-3 border-b border-slate-100 dark:border-ink-700/40 flex items-center justify-between">
-              <h2 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200">Mastery Tests</h2>
+              <h2 className="font-display font-semibold text-sm text-slate-800 dark:text-slate-200">Tests</h2>
               <button
                 onClick={() => navigate('tests')}
                 className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400

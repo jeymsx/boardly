@@ -132,6 +132,7 @@ export interface MasteryTest {
   scores: ScoreEntry[];
   targetScore: number;
   link?: string;
+  tags?: string[];
   createdAt: string;
 }
 

@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import { RotateCcw, Pencil, Trash2, ChevronDown, ChevronUp, StickyNote } from 'lucide-react';
+import React from 'react';
+import { RotateCcw, Pencil, Trash2, StickyNote } from 'lucide-react';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useToastStore } from '../store/useToastStore';
 import { topicProgress, pctNum } from '../utils/progress';
 import { ProgressBar } from './ui/ProgressBar';
-import { StatusBadge } from './ui/Badge';
 import { COLOR_MAP } from '../types';
 import type { Topic, Subject, ReadStatus } from '../types';
 
@@ -36,26 +35,20 @@ interface Props {
 export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete }) => {
   const { cycleReadStatus, resetTopicReads } = useSubjectsStore();
   const { addToast } = useToastStore();
-  const [expanded, setExpanded] = useState(false);
-  const progress    = topicProgress(topic);
-  const isComplete  = progress === 1 && topic.reads.length > 0;
-  const colorClass  = BORDER_LEFT[subject.color] ?? 'border-l-emerald-500';
-  const colors      = COLOR_MAP[subject.color];
+  const progress   = topicProgress(topic);
+  const isComplete = progress === 1 && topic.reads.length > 0;
+  const colorClass = BORDER_LEFT[subject.color] ?? 'border-l-emerald-500';
+  const colors     = COLOR_MAP[subject.color];
 
   return (
     <div className={`border border-l-2 ${colorClass} ${colors.border} rounded-xl transition-all
       animate-fade-in shadow-card dark:shadow-none overflow-hidden
       ${isComplete ? 'opacity-60' : ''}`}
     >
-      {/* Colored header */}
       <div className={`px-4 pt-3.5 pb-3 ${colors.bg}`}>
         <div className="flex items-start justify-between gap-2 mb-2.5">
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="flex items-center gap-2 text-left group flex-1 min-w-0"
-          >
-            <span className={`font-body font-medium text-sm leading-tight truncate
-              ${colors.text} group-hover:opacity-90 transition-opacity`}>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className={`font-body font-medium text-sm leading-tight truncate ${colors.text}`}>
               {topic.name}
             </span>
             {isComplete && (
@@ -68,10 +61,7 @@ export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete })
             <span className={`text-[10px] font-mono shrink-0 tabular-nums opacity-70 ${colors.text}`}>
               {pctNum(progress)}%
             </span>
-            <span className="text-slate-400 dark:text-slate-500 shrink-0">
-              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </span>
-          </button>
+          </div>
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => onEdit(topic)}
@@ -129,27 +119,12 @@ export const TopicCard: React.FC<Props> = ({ topic, subject, onEdit, onDelete })
         <ProgressBar value={progress} size="xs" gradient />
       </div>
 
-      {expanded && topic.notes && (
+      {topic.notes && (
         <div className="px-4 pb-3 border-t border-slate-100 dark:border-ink-700/40 pt-2.5
           bg-white dark:bg-ink-800/60">
           <div className="flex items-start gap-1.5 text-xs text-slate-400 dark:text-slate-500">
             <StickyNote size={12} className="mt-0.5 shrink-0" />
             <p className="leading-relaxed">{topic.notes}</p>
-          </div>
-        </div>
-      )}
-
-      {expanded && (
-        <div className="px-4 pb-3 pt-1 bg-white dark:bg-ink-800/60">
-          <div className="grid grid-cols-3 gap-1.5">
-            {topic.reads.map(read => (
-              <div key={read.id}
-                className={`rounded-lg p-2 border text-center ${READ_STATUS_COLORS[read.status]}`}
-              >
-                <p className="text-[10px] font-mono text-current opacity-70">Read {read.readNumber}</p>
-                <StatusBadge status={read.status} size="sm" />
-              </div>
-            ))}
           </div>
         </div>
       )}

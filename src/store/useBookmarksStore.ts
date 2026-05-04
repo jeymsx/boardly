@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { storage } from '../utils/storage';
+import { scheduleBookmarksSync } from '../lib/sync';
 import type { Bookmark } from '../types';
 
 interface BookmarksStore {
@@ -15,7 +16,7 @@ function persist(bookmarks: Bookmark[]) {
   storage.set('bookmarks', bookmarks);
 }
 
-export const useBookmarksStore = create<BookmarksStore>((set) => ({
+export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
   bookmarks: storage.get<Bookmark[]>('bookmarks', []),
 
   addBookmark: ({ title, url, icon }) => {
@@ -28,6 +29,7 @@ export const useBookmarksStore = create<BookmarksStore>((set) => ({
       persist(bookmarks);
       return { bookmarks };
     });
+    scheduleBookmarksSync(get().bookmarks);
   },
 
   updateBookmark: (id, patch) => {
@@ -36,6 +38,7 @@ export const useBookmarksStore = create<BookmarksStore>((set) => ({
       persist(bookmarks);
       return { bookmarks };
     });
+    scheduleBookmarksSync(get().bookmarks);
   },
 
   deleteBookmark: (id) => {
@@ -44,6 +47,7 @@ export const useBookmarksStore = create<BookmarksStore>((set) => ({
       persist(bookmarks);
       return { bookmarks };
     });
+    scheduleBookmarksSync(get().bookmarks);
   },
 
   togglePin: (id) => {
@@ -52,5 +56,6 @@ export const useBookmarksStore = create<BookmarksStore>((set) => ({
       persist(bookmarks);
       return { bookmarks };
     });
+    scheduleBookmarksSync(get().bookmarks);
   },
 }));

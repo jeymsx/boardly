@@ -1,16 +1,19 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Plus, GraduationCap, Search, SlidersHorizontal, X, Tag, Pencil, Trash2 } from 'lucide-react';
+import { Plus, GraduationCap, Search, SlidersHorizontal, X, Tag, Pencil, Trash2, LayoutGrid, List } from 'lucide-react';
 import { useSessionsStore } from '../store/useSessionsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useTagsStore } from '../store/useTagsStore';
 import { useToastStore } from '../store/useToastStore';
-import { SessionCard } from '../components/SessionCard';
+import { SessionCard, SessionDetailModal } from '../components/SessionCard';
 import { Modal } from '../components/ui/Modal';
 import { Input, Select, Textarea } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { ProgressBar } from '../components/ui/ProgressBar';
 import { PageHeader } from '../components/layout/PageHeader';
+import { sessionProgress, pctNum } from '../utils/progress';
+import { COLOR_MAP } from '../types';
 import type { Session } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -558,6 +561,8 @@ export const Sessions: React.FC = () => {
   const [search,      setSearch]      = useState('');
   const [filterOpen,  setFilterOpen]  = useState(false);
   const [filters,     setFilters]     = useState<ActiveFilters>({ subjectIds: [], tagIds: [] });
+  const [view,        setView]        = useState<'card' | 'list'>('card');
+  const [viewingSession, setViewingSession] = useState<Session | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
   const activeFilterCount = filters.subjectIds.length + filters.tagIds.length;
@@ -650,10 +655,9 @@ export const Sessions: React.FC = () => {
         }
       />
 
-      {/* Filter + Search row */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        {/* Status tabs */}
-        <div className="flex gap-1 bg-slate-100 dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50 p-1 rounded-xl w-fit shrink-0">
+      {/* Toolbar — row 1: tabs + view toggle */}
+      <div className={`flex items-center justify-between gap-2 ${sessions.length > 0 ? 'mb-2' : 'mb-4'}`}>
+        <div className="flex gap-1 bg-slate-100 dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50 p-1 rounded-xl shrink-0">
           {(['all', 'upcoming', 'past'] as StatusFilter[]).map(f => (
             <button
               key={f}
@@ -668,57 +672,81 @@ export const Sessions: React.FC = () => {
           ))}
         </div>
 
-        {sessions.length > 0 && (
-          <>
-            <div className="relative flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search sessions…"
-                className="w-full pl-8 pr-4 py-2 rounded-xl text-sm font-body
-                  bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
-                  text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600
-                  focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all"
-              />
-            </div>
-
-            <button
-              onClick={() => setFilterOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-body font-medium border transition-all shrink-0
-                ${activeFilterCount > 0
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-400/30 dark:border-emerald-500/30'
-                  : 'bg-white dark:bg-ink-800/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-ink-700/50 hover:border-slate-300 dark:hover:border-ink-600/60'}`}
-            >
-              <SlidersHorizontal size={13} />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-mono font-bold
-                  bg-emerald-500 text-white">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-          </>
-        )}
-
-        {/* Manage Tags button — always visible */}
-        <button
-          onClick={() => setTagMgr(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-body font-medium border transition-all shrink-0
-            bg-white dark:bg-ink-800/60 text-slate-500 dark:text-slate-400
-            border-slate-200 dark:border-ink-700/50 hover:border-slate-300 dark:hover:border-ink-600/60"
-        >
-          <Tag size={13} />
-          Tags
-          {allTags.length > 0 && (
-            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600">
-              {allTags.length}
-            </span>
-          )}
-        </button>
+        {/* View toggle */}
+        <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50 p-1 rounded-xl shrink-0">
+          <button
+            onClick={() => setView('card')}
+            title="Card view"
+            className={`p-1.5 rounded-lg transition-all
+              ${view === 'card'
+                ? 'bg-white dark:bg-ink-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+          >
+            <LayoutGrid size={14} />
+          </button>
+          <button
+            onClick={() => setView('list')}
+            title="List view"
+            className={`p-1.5 rounded-lg transition-all
+              ${view === 'list'
+                ? 'bg-white dark:bg-ink-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+          >
+            <List size={14} />
+          </button>
+        </div>
       </div>
+
+      {/* Toolbar — row 2: search + filters + tags */}
+      {sessions.length > 0 && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search sessions…"
+              className="w-full pl-8 pr-4 py-2 rounded-xl text-sm font-body
+                bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50
+                text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600
+                focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all"
+            />
+          </div>
+
+          <button
+            onClick={() => setFilterOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-body font-medium border transition-all shrink-0
+              ${activeFilterCount > 0
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-400/30 dark:border-emerald-500/30'
+                : 'bg-white dark:bg-ink-800/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-ink-700/50 hover:border-slate-300 dark:hover:border-ink-600/60'}`}
+          >
+            <SlidersHorizontal size={13} />
+            <span className="hidden sm:inline">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-mono font-bold
+                bg-emerald-500 text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setTagMgr(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-body font-medium border transition-all shrink-0
+              bg-white dark:bg-ink-800/60 text-slate-500 dark:text-slate-400
+              border-slate-200 dark:border-ink-700/50 hover:border-slate-300 dark:hover:border-ink-600/60"
+          >
+            <Tag size={13} />
+            <span className="hidden sm:inline">Tags</span>
+            {allTags.length > 0 && (
+              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 hidden sm:inline">
+                {allTags.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Active filter chips */}
       {activeFilterCount > 0 && (
@@ -776,7 +804,7 @@ export const Sessions: React.FC = () => {
           title="No results"
           description={search ? `No sessions matching "${search}".` : `No ${status} sessions matching your filters.`}
         />
-      ) : (
+      ) : view === 'card' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {filtered.map(session => (
             <SessionCard
@@ -786,6 +814,98 @@ export const Sessions: React.FC = () => {
               onDelete={() => requestDelete(session)}
             />
           ))}
+        </div>
+      ) : (
+        /* ── List view ── */
+        <div className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50 rounded-2xl overflow-hidden">
+          {/* Column headers — hidden on mobile */}
+          <div className="hidden md:grid md:grid-cols-[5.5rem_1fr_10rem_6.5rem_10rem_4.5rem] items-center gap-3 px-5 py-2.5
+            border-b border-slate-100 dark:border-ink-700/40 bg-slate-50/80 dark:bg-ink-900/40">
+            {['Date', 'Title', 'Subject', 'Status', 'Progress', 'Actions'].map(h => (
+              <span key={h} className="text-[10px] font-mono font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-wider last:text-right">
+                {h}
+              </span>
+            ))}
+          </div>
+          {/* Rows */}
+          <div className="divide-y divide-slate-100 dark:divide-ink-700/40">
+            {filtered.map(session => {
+              const subject = subjects.find(s => s.id === session.subjectId);
+              const colors = (session.subjectEnabled !== false && subject) ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
+              const prog = sessionProgress(session);
+              const progPct = pctNum(prog);
+              const date = new Date(session.date + 'T00:00:00');
+              const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+              const monthDay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              return (
+                <div key={session.id}
+                  onClick={() => setViewingSession(session)}
+                  className="relative flex md:grid md:grid-cols-[5.5rem_1fr_10rem_6.5rem_10rem_4.5rem] items-center gap-3 px-5 py-3
+                    hover:bg-slate-50 dark:hover:bg-ink-900/30 transition-colors cursor-pointer">
+                  {/* Subject color accent bar */}
+                  <span className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-full ${colors.bg}`} />
+                  {/* Date */}
+                  <div className="shrink-0 pl-1">
+                    <p className="text-[10px] font-mono text-slate-400 dark:text-slate-600">{dayName}</p>
+                    <p className="text-xs font-body font-semibold text-slate-700 dark:text-slate-300">{monthDay}</p>
+                  </div>
+                  {/* Title */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${colors.dot}`} />
+                    <p className="text-sm font-body font-medium text-slate-800 dark:text-slate-200 truncate">
+                      {session.topicLabel}
+                    </p>
+                  </div>
+                  {/* Subject */}
+                  <p className={`hidden md:block text-xs font-body font-semibold uppercase tracking-wide truncate
+                    ${session.subjectEnabled !== false && subject ? colors.text : 'text-slate-400 dark:text-slate-600'}`}>
+                    {session.subjectEnabled !== false && subject ? subject.name : '—'}
+                  </p>
+                  {/* Status */}
+                  <div className="hidden md:block">
+                    <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap
+                      ${session.attendanceStatus === 'attended'
+                        ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
+                        : session.attendanceStatus === 'partially-attended'
+                        ? 'bg-orange-50 dark:bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/30'
+                        : 'bg-slate-100 dark:bg-ink-700/60 text-slate-500 dark:text-slate-500 border-slate-200 dark:border-ink-600/40'}`}
+                    >
+                      {session.attendanceStatus === 'attended' ? 'Attended' : session.attendanceStatus === 'partially-attended' ? 'Partial' : 'Pending'}
+                    </span>
+                  </div>
+                  {/* Progress */}
+                  <div className="hidden md:flex items-center gap-2">
+                    <div className="flex-1">
+                      <ProgressBar value={prog} size="xs" color={prog >= 0.8 ? 'jade' : prog > 0 ? 'orange' : 'rose'} />
+                    </div>
+                    <span className={`text-xs font-mono font-semibold shrink-0 w-7 text-right
+                      ${prog > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                      {progPct}%
+                    </span>
+                  </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 ml-auto md:ml-0 shrink-0 justify-end">
+                    <button
+                      onClick={e => { e.stopPropagation(); openEdit(session); }}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center
+                        text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
+                        hover:bg-slate-100 dark:hover:bg-ink-700/60 transition-all"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); requestDelete(session); }}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center
+                        text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400
+                        hover:bg-rose-50 dark:hover:bg-rose-500/15 transition-all"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -814,6 +934,15 @@ export const Sessions: React.FC = () => {
         open={tagMgr}
         onClose={() => setTagMgr(false)}
       />
+      {viewingSession && (
+        <SessionDetailModal
+          session={viewingSession}
+          open={!!viewingSession}
+          onClose={() => setViewingSession(null)}
+          onEdit={s => { setViewingSession(null); openEdit(s); }}
+          onDelete={id => { setViewingSession(null); requestDelete(sessions.find(s => s.id === id)!); }}
+        />
+      )}
     </div>
   );
 };

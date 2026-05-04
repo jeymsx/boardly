@@ -6,21 +6,22 @@ import { type MasteryTest, type ScoreEntry } from '../types';
 
 interface TestsStore {
   tests: MasteryTest[];
-  addTest:     (params: { name: string; subjectId?: string; subjectEnabled: boolean; topicLabel?: string; targetScore: number; link?: string }) => MasteryTest;
-  updateTest:  (id: string, patch: Partial<Pick<MasteryTest, 'name' | 'subjectId' | 'subjectEnabled' | 'topicLabel' | 'targetScore' | 'link'>>) => void;
+  addTest:     (params: { name: string; subjectId?: string; subjectEnabled: boolean; topicLabel?: string; targetScore: number; link?: string; tags?: string[] }) => MasteryTest;
+  updateTest:  (id: string, patch: Partial<Pick<MasteryTest, 'name' | 'subjectId' | 'subjectEnabled' | 'topicLabel' | 'targetScore' | 'link' | 'tags'>>) => void;
   deleteTest:  (id: string) => void;
   addScore:    (testId: string, score: number, maxScore: number, notes?: string, link?: string) => void;
   updateScore: (testId: string, scoreId: string, patch: { score?: number; maxScore?: number; link?: string }) => void;
   deleteScore: (testId: string, scoreId: string) => void;
+  removeTagFromTests: (tagId: string) => void;
 }
 
 export const useTestsStore = create<TestsStore>((set, get) => ({
   tests: storage.get<MasteryTest[]>('tests', []),
 
-  addTest: ({ name, subjectId, subjectEnabled, topicLabel, targetScore, link }) => {
+  addTest: ({ name, subjectId, subjectEnabled, topicLabel, targetScore, link, tags }) => {
     const test: MasteryTest = {
       id: uuid(), name, subjectId, subjectEnabled, topicLabel,
-      scores: [], targetScore, link, createdAt: new Date().toISOString(),
+      scores: [], targetScore, link, tags: tags ?? [], createdAt: new Date().toISOString(),
     };
     set(state => {
       const tests = [...state.tests, test];
@@ -90,6 +91,17 @@ export const useTestsStore = create<TestsStore>((set, get) => ({
           .map((s, i) => ({ ...s, attemptNumber: i + 1 }));
         return { ...t, scores };
       });
+      storage.set('tests', tests);
+      return { tests };
+    });
+    scheduleTestsSync(get().tests);
+  },
+
+  removeTagFromTests: (tagId: string) => {
+    set(state => {
+      const tests = state.tests.map(t => ({
+        ...t, tags: (t.tags ?? []).filter(id => id !== tagId),
+      }));
       storage.set('tests', tests);
       return { tests };
     });

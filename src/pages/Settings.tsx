@@ -99,7 +99,7 @@ export const Settings: React.FC = () => {
       {authModal && <AuthModal onClose={() => setAuthModal(false)} />}
 
       {/* Two-column layout on lg */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-6 lg:items-start">
 
         {/* ── Left column: account / identity ── */}
         <div>
@@ -109,7 +109,7 @@ export const Settings: React.FC = () => {
             description={user ? 'Your data syncs automatically in the background' : 'Sign in to back up and sync across devices'}
           >
             {user ? (
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/15
                     border border-emerald-200 dark:border-emerald-500/25

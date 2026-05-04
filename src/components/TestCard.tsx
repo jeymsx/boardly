@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useTestsStore } from '../store/useTestsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
+import { useTestTagsStore } from '../store/useTestTagsStore';
 import { useToastStore } from '../store/useToastStore';
 import { highestScore, latestScore, averageScore, scoreTrend, passedTarget } from '../utils/scores';
 import { formatDate } from '../utils/dates';
@@ -207,6 +208,7 @@ const TestDetailModal: React.FC<TestDetailModalProps> = ({
 }) => {
   const { addScore } = useTestsStore();
   const { subjects } = useSubjectsStore();
+  const { tags: allTags } = useTestTagsStore();
   const { addToast } = useToastStore();
   const [score,    setScore]    = useState('');
   const [maxScore, setMaxScore] = useState('100');
@@ -235,6 +237,8 @@ const TestDetailModal: React.FC<TestDetailModalProps> = ({
     ? ((parseFloat(score) / parseFloat(maxScore)) * 100).toFixed(1)
     : null;
 
+  const resolvedTags = (test.tags ?? []).map(id => allTags.find(t => t.id === id)).filter(Boolean) as { id: string; name: string }[];
+
   const handleAdd = () => {
     const s = parseFloat(score);
     const m = parseFloat(maxScore);
@@ -245,14 +249,44 @@ const TestDetailModal: React.FC<TestDetailModalProps> = ({
     setScore(''); setMaxScore('100'); setNotes(''); setLink('');
   };
 
+  const headerActions = (
+    <>
+      <button
+        onClick={() => { onClose(); onEdit(test); }}
+        className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-ink-700/60 hover:bg-slate-200 dark:hover:bg-ink-600
+          flex items-center justify-center text-slate-500 dark:text-slate-400
+          hover:text-slate-700 dark:hover:text-slate-200 transition-all active:scale-95"
+        title="Edit test"
+      >
+        <Pencil size={14} />
+      </button>
+      <button
+        onClick={() => { onClose(); onDelete(test.id); }}
+        className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-ink-700/60 hover:bg-rose-100 dark:hover:bg-rose-500/20
+          flex items-center justify-center text-slate-500 dark:text-slate-400
+          hover:text-rose-600 dark:hover:text-rose-400 transition-all active:scale-95"
+        title="Delete test"
+      >
+        <Trash2 size={14} />
+      </button>
+    </>
+  );
+
   return (
-    <Modal open={open} onClose={onClose} title={test.name}>
+    <Modal open={open} onClose={onClose} title={test.name} headerActions={headerActions}>
       <div className="flex flex-col gap-4">
 
         {/* Meta */}
         <div className="flex flex-wrap items-center gap-1.5">
           {subject && <span className={`text-xs font-body font-medium ${colors.text}`}>{subject.name}</span>}
           {topicDisplay && <span className="text-xs text-slate-400 dark:text-slate-600">• {topicDisplay}</span>}
+          {resolvedTags.map(tag => (
+            <span key={tag.id} className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-medium capitalize
+              bg-slate-100 dark:bg-ink-700/60 text-slate-500 dark:text-slate-500
+              border border-slate-200 dark:border-ink-600/40">
+              {tag.name}
+            </span>
+          ))}
           {test.link && (
             <a
               href={test.link}
@@ -269,36 +303,46 @@ const TestDetailModal: React.FC<TestDetailModalProps> = ({
         </div>
 
         {/* Stats row */}
-        <div className="flex items-center gap-4 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-ink-900/40
-          border border-slate-200 dark:border-ink-700/40 flex-wrap">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 uppercase tracking-wider">Target</span>
-            <span className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">{test.targetScore}%</span>
-          </div>
-          {latest !== null && (
-            <div className="flex flex-col">
-              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 uppercase tracking-wider">Latest</span>
-              <span className={`text-sm font-mono font-bold ${latest >= test.targetScore ? 'text-emerald-600 dark:text-jade-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                {latest.toFixed(1)}%
+        <div className="grid grid-cols-5 rounded-xl border border-slate-200 dark:border-ink-700/40
+          bg-slate-50 dark:bg-ink-900/40 divide-x divide-slate-200 dark:divide-ink-700/40">
+          {[
+            {
+              label: 'Target',
+              value: `${test.targetScore}%`,
+              cls: 'text-slate-700 dark:text-slate-300',
+            },
+            {
+              label: 'Latest',
+              value: latest !== null ? `${latest.toFixed(1)}%` : '—',
+              cls: latest !== null
+                ? latest >= test.targetScore
+                  ? 'text-emerald-600 dark:text-jade-400'
+                  : 'text-rose-500 dark:text-rose-400'
+                : 'text-slate-400 dark:text-slate-600',
+            },
+            {
+              label: 'Avg',
+              value: avg !== null ? `${avg.toFixed(1)}%` : '—',
+              cls: 'text-slate-700 dark:text-slate-300',
+            },
+            {
+              label: 'Best',
+              value: hi !== null ? `${hi.toFixed(1)}%` : '—',
+              cls: hi !== null ? 'text-emerald-600 dark:text-jade-400' : 'text-slate-400 dark:text-slate-600',
+            },
+            {
+              label: 'Takes',
+              value: String(test.scores.length),
+              cls: 'text-slate-700 dark:text-slate-300',
+            },
+          ].map(({ label, value, cls }) => (
+            <div key={label} className="flex flex-col items-center justify-center py-3 px-1 gap-0.5">
+              <span className="text-[9px] font-mono font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-wider">
+                {label}
               </span>
+              <span className={`text-sm font-mono font-bold ${cls}`}>{value}</span>
             </div>
-          )}
-          {avg !== null && (
-            <div className="flex flex-col">
-              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 uppercase tracking-wider">Avg</span>
-              <span className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">{avg.toFixed(1)}%</span>
-            </div>
-          )}
-          {hi !== null && (
-            <div className="flex flex-col">
-              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 uppercase tracking-wider">Best</span>
-              <span className="text-sm font-mono font-bold text-emerald-600 dark:text-emerald-400">{hi.toFixed(1)}%</span>
-            </div>
-          )}
-          <div className="flex flex-col ml-auto text-right">
-            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 uppercase tracking-wider">Takes</span>
-            <span className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">{test.scores.length}</span>
-          </div>
+          ))}
         </div>
 
         {/* Score history */}
@@ -390,14 +434,9 @@ const TestDetailModal: React.FC<TestDetailModalProps> = ({
           </button>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 pt-1">
-          <Button variant="ghost" fullWidth onClick={() => { onClose(); onEdit(test); }}>
-            Edit Test
-          </Button>
-          <Button variant="danger" fullWidth onClick={() => { onClose(); onDelete(test.id); }}>
-            Delete
-          </Button>
+        {/* Done */}
+        <div className="pt-1">
+          <Button variant="ghost" fullWidth onClick={onClose}>Done</Button>
         </div>
 
       </div>
@@ -415,6 +454,7 @@ interface Props {
 
 export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
   const { subjects } = useSubjectsStore();
+  const { tags: allTags } = useTestTagsStore();
   const [detailOpen, setDetailOpen] = useState(false);
 
   const subject = test.subjectEnabled !== false && test.subjectId
@@ -430,6 +470,8 @@ export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
   const avg    = averageScore(test.scores);
   const trend  = scoreTrend(test.scores);
   const passed = passedTarget(test.scores, test.targetScore);
+
+  const resolvedTags = (test.tags ?? []).map(id => allTags.find(t => t.id === id)).filter(Boolean) as { id: string; name: string }[];
 
   const TrendIcon  = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
   const trendColor = trend === 'up'
@@ -470,6 +512,13 @@ export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
               <div className="flex items-center gap-1.5 flex-wrap">
                 {subject && <span className={`text-xs ${colors.text} font-body opacity-80`}>{subject.name}</span>}
                 {topicDisplay && <span className="text-xs text-slate-400 dark:text-slate-600">• {topicDisplay}</span>}
+                {resolvedTags.map(tag => (
+                  <span key={tag.id} className="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-medium capitalize
+                    bg-slate-100 dark:bg-ink-700/60 text-slate-500 dark:text-slate-500
+                    border border-slate-200 dark:border-ink-600/40">
+                    {tag.name}
+                  </span>
+                ))}
               </div>
             </div>
 

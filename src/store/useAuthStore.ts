@@ -19,12 +19,16 @@ import {
   setCurrentUser, enableSync, disableSync, pullAll,
   scheduleSubjectsSync, scheduleTopicsSync, scheduleSessionsSync,
   scheduleTestsSync, scheduleEventsSync, scheduleSettingsSync,
+  scheduleTagsSync, scheduleTestTagsSync, scheduleBookmarksSync,
 } from '../lib/sync';
 import { useSubjectsStore } from './useSubjectsStore';
 import { useSessionsStore } from './useSessionsStore';
 import { useTestsStore }    from './useTestsStore';
 import { useEventsStore }   from './useEventsStore';
 import { useSettingsStore } from './useSettingsStore';
+import { useTagsStore }     from './useTagsStore';
+import { useTestTagsStore } from './useTestTagsStore';
+import { useBookmarksStore } from './useBookmarksStore';
 import { storage } from '../utils/storage';
 import { DEFAULT_SETTINGS } from '../types';
 import type { RemoteData } from '../lib/sync';
@@ -45,12 +49,18 @@ function hydrateStores(remote: RemoteData) {
   useSessionsStore.setState({ sessions: remote.sessions });
   useTestsStore.setState({ tests: remote.tests });
   useEventsStore.setState({ events: remote.events });
+  useTagsStore.setState({ tags: remote.tags });
+  useTestTagsStore.setState({ tags: remote.testTags });
+  useBookmarksStore.setState({ bookmarks: remote.bookmarks });
 
   storage.set('subjects', remote.subjects);
   storage.set('topics',   remote.topics);
   storage.set('sessions', remote.sessions);
   storage.set('tests',    remote.tests);
   storage.set('events',   remote.events);
+  storage.set('tags',     remote.tags);
+  storage.set('test-tags', remote.testTags);
+  storage.set('bookmarks', remote.bookmarks);
 
   if (remote.settings) {
     const merged = { ...DEFAULT_SETTINGS, ...remote.settings };
@@ -66,12 +76,18 @@ function pushLocalState() {
   const { tests }            = useTestsStore.getState();
   const { events }           = useEventsStore.getState();
   const { settings }         = useSettingsStore.getState();
+  const { tags }             = useTagsStore.getState();
+  const { tags: testTags }   = useTestTagsStore.getState();
+  const { bookmarks }        = useBookmarksStore.getState();
   scheduleSubjectsSync(subjects);
   scheduleTopicsSync(topics);
   scheduleSessionsSync(sessions);
   scheduleTestsSync(tests);
   scheduleEventsSync(events);
   scheduleSettingsSync(settings);
+  scheduleTagsSync(tags);
+  scheduleTestTagsSync(testTags);
+  scheduleBookmarksSync(bookmarks);
 }
 
 async function handleSignIn(userId: string, set: (p: Partial<AuthStore>) => void) {

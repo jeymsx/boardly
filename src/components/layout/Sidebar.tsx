@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, BookOpen, CalendarDays, FlaskConical, Settings2, GraduationCap, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, BookOpen, CalendarDays, FlaskConical, Settings2, GraduationCap } from 'lucide-react';
 import { useNavStore } from '../../store/useNavStore';
 import { useSubjectsStore } from '../../store/useSubjectsStore';
 import { useSessionsStore } from '../../store/useSessionsStore';
@@ -39,9 +39,7 @@ export const Sidebar: React.FC = () => {
       {/* Brand */}
       <div className="px-5 pt-6 pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center shadow-glow-emerald">
-            <TrendingUp size={16} className="text-white stroke-[2.5]" />
-          </div>
+          <img src="/favicon.svg" alt="Boardly" className="w-8 h-8 rounded-xl" />
           <span className="font-display font-bold text-xl text-slate-900 dark:text-slate-100 tracking-tight">
             Boardly
           </span>

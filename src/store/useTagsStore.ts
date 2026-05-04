@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { storage } from '../utils/storage';
+import { scheduleTagsSync } from '../lib/sync';
 import type { Tag } from '../types';
 
 interface TagsStore {
@@ -23,6 +24,7 @@ export const useTagsStore = create<TagsStore>((set, get) => ({
       storage.set('tags', tags);
       return { tags };
     });
+    scheduleTagsSync(get().tags);
     return tag;
   },
 
@@ -34,6 +36,7 @@ export const useTagsStore = create<TagsStore>((set, get) => ({
       storage.set('tags', tags);
       return { tags };
     });
+    scheduleTagsSync(get().tags);
   },
 
   deleteTag: (id: string) => {
@@ -42,5 +45,6 @@ export const useTagsStore = create<TagsStore>((set, get) => ({
       storage.set('tags', tags);
       return { tags };
     });
+    scheduleTagsSync(get().tags);
   },
 }));
