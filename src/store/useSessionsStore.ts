@@ -20,6 +20,7 @@ interface SessionsStore {
     totalReviews: number;
     reviewIntervals: number[];
     autoGenerate: boolean;
+    notes?: string;
     notesLink?: string;
     tags?: string[];
   }) => Session;
@@ -61,7 +62,7 @@ function persist(sessions: Session[]) {
 export const useSessionsStore = create<SessionsStore>((set, get) => ({
   sessions: storage.get<Session[]>('sessions', []),
 
-  addSession: ({ date, subjectId, subjectEnabled, topicLabel, totalReviews, reviewIntervals, autoGenerate, notesLink, tags }) => {
+  addSession: ({ date, subjectId, subjectEnabled, topicLabel, totalReviews, reviewIntervals, autoGenerate, notes, notesLink, tags }) => {
     const id = uuid();
     const intervals = reviewIntervals.slice(0, totalReviews);
     const reviews = autoGenerate ? buildReviews(id, generateReviewDates(date, intervals)) : [];
@@ -70,6 +71,7 @@ export const useSessionsStore = create<SessionsStore>((set, get) => ({
       attendanceStatus: 'pending',
       reviews,
       totalReviews,
+      notes,
       notesLink,
       tags: tags ?? [],
       weeklyTest: { scores: [] },

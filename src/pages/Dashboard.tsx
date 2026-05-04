@@ -23,25 +23,27 @@ import type { AttendanceStatus, Session, CalendarEvent } from '../types';
 
 // ─── Greeting helpers ─────────────────────────────────────────────────────────
 
-const MORNING_GREETINGS = [
-  'Good morning ☀️', 'Rise and shine 🌅', 'Morning! ☕',
-  'Up early — love the dedication 💪', 'A new day, a new chapter 📖',
-  'Ready to crush it today? 🔥', 'Morning grind starts now ⚡',
+type Greeting = [string, string];
+
+const MORNING_GREETINGS: Greeting[] = [
+  ['Good morning', '☀️'], ['Rise and shine', '🌅'], ['Morning', '☕'],
+  ['Up early — love the dedication', '💪'], ['A new day, a new chapter', '📖'],
+  ['Crushing it early', '🔥'], ['Morning grind starts now', '⚡'],
 ];
-const AFTERNOON_GREETINGS = [
-  'Hey there 👋', 'Good afternoon 👋', 'Welcome back 👋',
-  'Keep the momentum going 💪', "You're on a roll 🔥",
-  'Hope the day is treating you well 👋', 'Afternoon session, let\'s go 📚',
+const AFTERNOON_GREETINGS: Greeting[] = [
+  ['Hey there', '👋'], ['Good afternoon', '👋'], ['Welcome back', '👋'],
+  ['Keep the momentum going', '💪'], ["You're on a roll", '🔥'],
+  ['Hope the day is treating you well', '👋'], ["Afternoon session, let's go", '📚'],
 ];
-const EVENING_GREETINGS = [
-  'Good evening 🌙', 'Evening study session 📚', 'Winding down? Make it count 🌆',
-  'Evening grind — respect 💪', 'Almost done for the day 🌇',
-  'End the day strong 🌙', 'One more session before bed 📖',
+const EVENING_GREETINGS: Greeting[] = [
+  ['Good evening', '🌙'], ['Evening study session', '📚'], ['Winding down? Make it count', '🌆'],
+  ['Evening grind — respect', '💪'], ['Almost done for the day', '🌇'],
+  ['End the day strong', '🌙'], ['One more session before bed', '📖'],
 ];
-const NIGHT_GREETINGS = [
-  'Burning the midnight oil 🔥', 'Late night grind 🌙', 'Up late? You\'ve got this ⭐',
-  'Night owl mode 🦉', 'The board exam waits for no one 📖',
-  'Quiet hours, maximum focus 🌙', 'Midnight warrior 🌟',
+const NIGHT_GREETINGS: Greeting[] = [
+  ['Burning the midnight oil', '🔥'], ['Late night grind', '🌙'], ["Up late? You've got this", '⭐'],
+  ['Night owl mode', '🦉'], ['The board exam waits for no one', '📖'],
+  ['Quiet hours, maximum focus', '🌙'], ['Midnight warrior', '🌟'],
 ];
 
 function getGreeting(name: string): string {
@@ -51,8 +53,8 @@ function getGreeting(name: string): string {
     hour >= 12 && hour < 18 ? AFTERNOON_GREETINGS :
     hour >= 18 && hour < 22 ? EVENING_GREETINGS   :
     NIGHT_GREETINGS;
-  const pick = pool[Math.floor(Math.random() * pool.length)];
-  return name ? `${pick}, ${name}!` : pick;
+  const [base, emoji] = pool[Math.floor(Math.random() * pool.length)];
+  return name ? `${base}, ${name}! ${emoji}` : `${base}! ${emoji}`;
 }
 
 const QUOTES = [

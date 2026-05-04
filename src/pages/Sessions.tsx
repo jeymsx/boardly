@@ -546,7 +546,7 @@ type StatusFilter = 'all' | 'upcoming' | 'past';
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const Sessions: React.FC = () => {
-  const { sessions, addSession, updateSession, deleteSession } = useSessionsStore();
+  const { sessions, addSession, updateSession, deleteSession, cycleAttendance } = useSessionsStore();
   const { subjects } = useSubjectsStore();
   const { settings } = useSettingsStore();
   const { tags: allTags } = useTagsStore();
@@ -563,6 +563,12 @@ export const Sessions: React.FC = () => {
   const [filters,     setFilters]     = useState<ActiveFilters>({ subjectIds: [], tagIds: [] });
   const [view,        setView]        = useState<'card' | 'list'>('card');
   const [viewingSession, setViewingSession] = useState<Session | null>(null);
+
+  // Always derive the live session from the store so modal reflects store mutations
+  const liveViewingSession = useMemo(
+    () => viewingSession ? (sessions.find(s => s.id === viewingSession.id) ?? null) : null,
+    [viewingSession, sessions],
+  );
 
   const today = new Date().toISOString().slice(0, 10);
   const activeFilterCount = filters.subjectIds.length + filters.tagIds.length;
@@ -624,6 +630,7 @@ export const Sessions: React.FC = () => {
         totalReviews: form.totalReviews,
         reviewIntervals: settings.reviewIntervals,
         autoGenerate: settings.autoGenerateReviews,
+        notes: form.notes || undefined,
         notesLink: form.notesLink || undefined,
         tags: form.tags,
       });
@@ -843,7 +850,7 @@ export const Sessions: React.FC = () => {
                   className="relative flex md:grid md:grid-cols-[5.5rem_1fr_10rem_6.5rem_10rem_4.5rem] items-center gap-3 px-5 py-3
                     hover:bg-slate-50 dark:hover:bg-ink-900/30 transition-colors cursor-pointer">
                   {/* Subject color accent bar */}
-                  <span className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-full ${colors.bg}`} />
+                  <span className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-full ${colors.dot}`} />
                   {/* Date */}
                   <div className="shrink-0 pl-1">
                     <p className="text-[10px] font-mono text-slate-400 dark:text-slate-600">{dayName}</p>
@@ -861,17 +868,22 @@ export const Sessions: React.FC = () => {
                     ${session.subjectEnabled !== false && subject ? colors.text : 'text-slate-400 dark:text-slate-600'}`}>
                     {session.subjectEnabled !== false && subject ? subject.name : '—'}
                   </p>
-                  {/* Status */}
+                  {/* Status — clickable to cycle */}
                   <div className="hidden md:block">
-                    <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap
-                      ${session.attendanceStatus === 'attended'
-                        ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
-                        : session.attendanceStatus === 'partially-attended'
-                        ? 'bg-orange-50 dark:bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/30'
-                        : 'bg-slate-100 dark:bg-ink-700/60 text-slate-500 dark:text-slate-500 border-slate-200 dark:border-ink-600/40'}`}
+                    <button
+                      onClick={e => { e.stopPropagation(); cycleAttendance(session.id); }}
+                      className="hover:opacity-75 transition-opacity active:scale-95"
                     >
-                      {session.attendanceStatus === 'attended' ? 'Attended' : session.attendanceStatus === 'partially-attended' ? 'Partial' : 'Pending'}
-                    </span>
+                      <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap cursor-pointer
+                        ${session.attendanceStatus === 'attended'
+                          ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
+                          : session.attendanceStatus === 'partially-attended'
+                          ? 'bg-orange-50 dark:bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-500/30'
+                          : 'bg-slate-100 dark:bg-ink-700/60 text-slate-500 dark:text-slate-500 border-slate-200 dark:border-ink-600/40'}`}
+                      >
+                        {session.attendanceStatus === 'attended' ? 'Attended' : session.attendanceStatus === 'partially-attended' ? 'Partial' : 'Pending'}
+                      </span>
+                    </button>
                   </div>
                   {/* Progress */}
                   <div className="hidden md:flex items-center gap-2">
@@ -934,9 +946,9 @@ export const Sessions: React.FC = () => {
         open={tagMgr}
         onClose={() => setTagMgr(false)}
       />
-      {viewingSession && (
+      {viewingSession && liveViewingSession && (
         <SessionDetailModal
-          session={viewingSession}
+          session={liveViewingSession}
           open={!!viewingSession}
           onClose={() => setViewingSession(null)}
           onEdit={s => { setViewingSession(null); openEdit(s); }}

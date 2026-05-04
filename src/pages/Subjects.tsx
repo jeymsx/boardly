@@ -331,8 +331,9 @@ export const Subjects: React.FC = () => {
         {selectedSubject ? (
           <>
             {/* Panel header */}
-            <div className={`px-4 lg:px-6 pt-4 pb-3 border-b border-slate-100 dark:border-ink-700/40
-              ${selectedColors.bg}`}>
+            <div className="px-4 lg:px-6 pt-4 pb-3 border-b border-slate-100 dark:border-ink-700/40 bg-white dark:bg-ink-900/80 relative">
+              {/* Left color accent */}
+              <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${selectedColors.dot}`} />
               {/* Mobile back button */}
               <div className="flex items-center gap-2 mb-3 lg:hidden">
                 <button onClick={() => setMobileIn(false)}
@@ -376,7 +377,7 @@ export const Subjects: React.FC = () => {
 
               {subjectTopicsCount > 0 && (
                 <div className="mt-2.5">
-                  <ProgressBar value={subjectProg} size="sm" color={selectedSubject.color as any} />
+                  <ProgressBar value={subjectProg} size="sm" color={selectedSubject.color === 'amber' ? 'orange' : selectedSubject.color} />
                 </div>
               )}
             </div>

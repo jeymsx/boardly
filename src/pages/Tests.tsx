@@ -486,6 +486,7 @@ export const Tests: React.FC = () => {
   const [search,       setSearch]       = useState('');
   const [filterOpen,   setFilterOpen]   = useState(false);
   const [filters,      setFilters]      = useState<ActiveFilters>({ subjectIds: [], tagIds: [] });
+  const [activeTag,    setActiveTag]    = useState<string | null>(null);
 
   const activeFilterCount = filters.subjectIds.length + filters.tagIds.length;
 
@@ -500,6 +501,10 @@ export const Tests: React.FC = () => {
       result = result.filter(t =>
         (t.tags ?? []).some(tagId => filters.tagIds.includes(tagId))
       );
+    }
+
+    if (activeTag) {
+      result = result.filter(t => (t.tags ?? []).includes(activeTag));
     }
 
     if (search.trim()) {
@@ -519,7 +524,7 @@ export const Tests: React.FC = () => {
     }
 
     return result;
-  }, [tests, search, subjects, filters, allTags]);
+  }, [tests, search, subjects, filters, allTags, activeTag]);
 
   const handleSaveTest = (form: TestForm) => {
     if (editing) {
@@ -618,6 +623,35 @@ export const Tests: React.FC = () => {
               </span>
             )}
           </button>
+        </div>
+      )}
+
+      {/* Tag tabs */}
+      {allTags.length > 0 && tests.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3" style={{ scrollbarWidth: 'none' }}>
+          <button
+            onClick={() => setActiveTag(null)}
+            className={`px-3 py-1.5 rounded-full text-xs font-body font-medium border whitespace-nowrap transition-all shrink-0
+              ${!activeTag ? TAG_ACTIVE : TAG_IDLE}`}
+          >
+            All
+            <span className="ml-1.5 text-[10px] opacity-60">{tests.length}</span>
+          </button>
+          {allTags.map(tag => {
+            const count = tests.filter(t => (t.tags ?? []).includes(tag.id)).length;
+            if (count === 0) return null;
+            return (
+              <button
+                key={tag.id}
+                onClick={() => setActiveTag(activeTag === tag.id ? null : tag.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-body font-medium border whitespace-nowrap transition-all shrink-0
+                  ${activeTag === tag.id ? TAG_ACTIVE : TAG_IDLE}`}
+              >
+                {tag.name}
+                <span className="ml-1.5 text-[10px] opacity-60">{count}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 

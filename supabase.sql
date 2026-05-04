@@ -87,3 +87,43 @@ CREATE POLICY "own_sessions"  ON sessions        FOR ALL USING (auth.uid() = use
 CREATE POLICY "own_tests"     ON mastery_tests   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_events"    ON calendar_events FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_settings"  ON user_settings   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Fix sessions table (missing columns)
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS subject_enabled boolean NOT NULL DEFAULT true;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS tags jsonb NOT NULL DEFAULT '[]';
+
+-- Fix mastery_tests table (missing tags column)
+ALTER TABLE mastery_tests ADD COLUMN IF NOT EXISTS tags jsonb NOT NULL DEFAULT '[]';
+
+-- Create session tags table
+CREATE TABLE IF NOT EXISTS tags (
+  id          uuid        PRIMARY KEY,
+  user_id     uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name        text        NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_tags" ON tags FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Create test tags table
+CREATE TABLE IF NOT EXISTS test_tags (
+  id          uuid        PRIMARY KEY,
+  user_id     uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name        text        NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE test_tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_test_tags" ON test_tags FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Create bookmarks table
+CREATE TABLE IF NOT EXISTS bookmarks (
+  id          uuid        PRIMARY KEY,
+  user_id     uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title       text        NOT NULL,
+  url         text        NOT NULL,
+  icon        text,
+  pinned      boolean     NOT NULL DEFAULT false,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE bookmarks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_bookmarks" ON bookmarks FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

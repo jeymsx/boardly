@@ -4,6 +4,7 @@ import { format, addMonths, subMonths, getDay, getDaysInMonth, startOfMonth } fr
 import { useSessionsStore } from '../store/useSessionsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useEventsStore } from '../store/useEventsStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { buildCalendarMonth, formatDate, todayISO } from '../utils/dates';
 import { COLOR_MAP, SUBJECT_COLORS } from '../types';
 import type { SubjectColor } from '../types';
@@ -131,6 +132,8 @@ export const Calendar: React.FC = () => {
   const { sessions } = useSessionsStore();
   const { subjects } = useSubjectsStore();
   const { events, addEvent, deleteEvent } = useEventsStore();
+  const { settings } = useSettingsStore();
+  const examDates = settings.examDates ?? [];
 
   const today = new Date();
   const [current,     setCurrent]     = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -229,7 +232,9 @@ export const Calendar: React.FC = () => {
             const dayNum     = parseInt(day.date.split('-')[2]);
             const isSelected = day.date === selected;
 
+            const dayExams = examDates.filter(ed => ed.date === day.date);
             const chips = [
+              ...dayExams.map(ed => ({ key: `exam-${ed.id}`, label: ed.label || 'Board Exam', color: 'rose' as const })),
               ...day.sessions.map(s => ({ key: `s-${s.id}`, label: s.topicLabel, color: 'sky' as const })),
               ...day.reviews.map(r => ({ key: `r-${r.id}`, label: `Rev ${r.reviewNumber}`, color: 'emerald' as const })),
               ...day.events.map(e => ({ key: `e-${e.id}`, label: e.title, color: 'violet' as const })),
@@ -261,6 +266,8 @@ export const Calendar: React.FC = () => {
                       className={`w-full flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-mono leading-tight overflow-hidden
                         ${isSelected
                           ? 'bg-white/20 text-white'
+                          : chip.color === 'rose'
+                          ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 font-semibold'
                           : chip.color === 'sky'
                           ? 'bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300'
                           : chip.color === 'emerald'
@@ -269,6 +276,7 @@ export const Calendar: React.FC = () => {
                     >
                       <span className={`w-1 h-1 rounded-full shrink-0
                         ${isSelected ? 'bg-white/70'
+                          : chip.color === 'rose' ? 'bg-rose-400'
                           : chip.color === 'sky' ? 'bg-sky-400'
                           : chip.color === 'emerald' ? 'bg-emerald-400'
                           : 'bg-violet-400'}`}
@@ -290,7 +298,12 @@ export const Calendar: React.FC = () => {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mb-4 px-1">
+      <div className="flex items-center gap-4 mb-4 px-1 flex-wrap">
+        {examDates.length > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+            <span className="w-2 h-2 rounded-full bg-rose-400" /> Exam
+          </div>
+        )}
         <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
           <span className="w-2 h-2 rounded-full bg-sky-400" /> Session
         </div>
@@ -314,10 +327,27 @@ export const Calendar: React.FC = () => {
           const daySess  = day?.sessions ?? [];
           const dayRevs  = day?.reviews  ?? [];
           const dayEvts  = day?.events   ?? [];
-          const total    = daySess.length + dayRevs.length + dayEvts.length;
+          const dayExams = examDates.filter(ed => ed.date === selected);
+          const total    = daySess.length + dayRevs.length + dayEvts.length + dayExams.length;
 
           return (
             <div className="flex flex-col gap-3">
+              {/* Exam date banner */}
+              {dayExams.map(ed => (
+                <div key={ed.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl
+                  bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
+                  <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center shrink-0 text-base">
+                    🎓
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-body font-semibold text-rose-700 dark:text-rose-300 truncate">
+                      {ed.label || 'Board Exam'}
+                    </p>
+                    <p className="text-xs text-rose-500 dark:text-rose-400">Exam day</p>
+                  </div>
+                </div>
+              ))}
+
               <div className="flex items-center justify-between -mt-1 mb-1">
                 <p className="text-xs text-slate-400 dark:text-slate-500 font-body">
                   {total === 0

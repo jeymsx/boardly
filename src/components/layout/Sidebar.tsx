@@ -13,12 +13,12 @@ import type { NavPage } from '../../types';
 interface NavItem { page: NavPage; icon: React.ReactNode }
 
 const NAV_ITEMS: NavItem[] = [
-  { page: 'dashboard', icon: <LayoutDashboard size={18} /> },
-  { page: 'subjects',  icon: <BookOpen size={18} /> },
-  { page: 'sessions',  icon: <GraduationCap size={18} /> },
-  { page: 'tests',     icon: <FlaskConical size={18} /> },
-  { page: 'calendar',  icon: <CalendarDays size={18} /> },
-  { page: 'settings',  icon: <Settings2 size={18} /> },
+  { page: 'dashboard', icon: <LayoutDashboard size={20} /> },
+  { page: 'subjects',  icon: <BookOpen size={20} /> },
+  { page: 'sessions',  icon: <GraduationCap size={20} /> },
+  { page: 'tests',     icon: <FlaskConical size={20} /> },
+  { page: 'calendar',  icon: <CalendarDays size={20} /> },
+  { page: 'settings',  icon: <Settings2 size={20} /> },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -32,7 +32,7 @@ export const Sidebar: React.FC = () => {
   const labels  = { ...DEFAULT_PAGE_LABELS, ...settings.pageLabels };
 
   return (
-    <aside className="hidden lg:flex flex-col w-60 shrink-0 h-screen sticky top-0
+    <aside className="hidden lg:flex flex-col w-72 shrink-0 h-screen sticky top-0
       bg-white dark:bg-ink-900/95 border-r border-slate-200 dark:border-ink-700/50
       backdrop-blur-xl transition-colors duration-200"
     >
@@ -68,7 +68,7 @@ export const Sidebar: React.FC = () => {
             <button
               key={item.page}
               onClick={() => navigate(item.page)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body font-medium
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-body font-medium
                 transition-all active:scale-[0.98] text-left
                 ${active
                   ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
