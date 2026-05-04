@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   BookOpen, GraduationCap, FlaskConical, TrendingUp,
-  CalendarDays, CheckCircle2, Clock, ChevronRight, Timer, Activity,
+  CalendarDays, CheckCircle2, Clock, ChevronRight, Activity,
   Plus, BookMarked, RotateCcw, Bookmark, Star, Trash2, ExternalLink, Link2,
 } from 'lucide-react';
 import { useSubjectsStore } from '../store/useSubjectsStore';
