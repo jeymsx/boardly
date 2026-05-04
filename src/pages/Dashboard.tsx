@@ -107,6 +107,16 @@ const QUOTES = [
   "One more push.",
 ];
 
+const getProgressMessage = (progress: number) => {
+  if (progress === 0) return "Start strong — your journey begins now.";
+  if (progress < 0.2) return "Building momentum — keep showing up.";
+  if (progress < 0.4) return "Good start — stay consistent.";
+  if (progress < 0.6) return "You're getting there — keep pushing.";
+  if (progress < 0.8) return "Strong progress — don't slow down.";
+  if (progress < 1) return "Almost there — finish strong.";
+  return "You did it — ready for the exam.";
+};
+
 
 const CalendarIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 128 128" {...props}>
@@ -444,7 +454,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <ProgressBar value={overall} size="lg" color="jade" />
             <p className="text-xs text-white/60 dark:text-slate-500 font-body mt-2">
-              Keep going — consistent study beats cramming.
+              {getProgressMessage(overall)}
             </p>
           </div>
         </div>
