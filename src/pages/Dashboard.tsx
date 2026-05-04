@@ -26,24 +26,31 @@ import type { AttendanceStatus, Session, CalendarEvent } from '../types';
 type Greeting = [string, string];
 
 const MORNING_GREETINGS: Greeting[] = [
-  ['Good morning', '☀️'], ['Rise and shine', '🌅'], ['Morning', '☕'],
-  ['Up early — love the dedication', '💪'], ['A new day, a new chapter', '📖'],
-  ['Crushing it early', '🔥'], ['Morning grind starts now', '⚡'],
+  ['Good morning', '☀️'], ['Rise & shine', '🌅'], ['Morning', '☕'],
+  ['Let’s get started', '⚡'], ['Fresh day, fresh focus', '📖'],
+  ['Early grind', '🔥'], ['Up and at it', '💪'],
+  ['Make today count', '🎯'], ['Start strong', '🚀'],
 ];
+
 const AFTERNOON_GREETINGS: Greeting[] = [
-  ['Hey there', '👋'], ['Good afternoon', '👋'], ['Welcome back', '👋'],
-  ['Keep the momentum going', '💪'], ["You're on a roll", '🔥'],
-  ['Hope the day is treating you well', '👋'], ["Afternoon session, let's go", '📚'],
+  ['Hey there', '👋'], ['Good afternoon', '🌤️'], ['Welcome back', '🔄'],
+  ['Keep it going', '💪'], ['Still on track', '📈'],
+  ['Stay sharp', '🧠'], ['Push through', '🔥'],
+  ['Halfway there', '⏳'], ['Don’t slow down', '⚡'],
 ];
+
 const EVENING_GREETINGS: Greeting[] = [
-  ['Good evening', '🌙'], ['Evening study session', '📚'], ['Winding down? Make it count', '🌆'],
-  ['Evening grind — respect', '💪'], ['Almost done for the day', '🌇'],
-  ['End the day strong', '🌙'], ['One more session before bed', '📖'],
+  ['Good evening', '🌙'], ['Evening session', '📚'], ['Finish strong', '🔥'],
+  ['Wrap it up well', '🌇'], ['Last push', '💪'],
+  ['Stay focused', '🧠'], ['Almost done', '🏁'],
+  ['Keep the streak', '📈'], ['End it right', '🎯'],
 ];
+
 const NIGHT_GREETINGS: Greeting[] = [
-  ['Burning the midnight oil', '🔥'], ['Late night grind', '🌙'], ["Up late? You've got this", '⭐'],
-  ['Night owl mode', '🦉'], ['The board exam waits for no one', '📖'],
-  ['Quiet hours, maximum focus', '🌙'], ['Midnight warrior', '🌟'],
+  ['Late night grind', '🌙'], ['Midnight focus', '🔥'], ['Night mode', '🦉'],
+  ['Still going', '💪'], ['Quiet hours, big work', '🌌'],
+  ['One more push', '⚡'], ['Stay locked in', '🎧'],
+  ['You got this', '⭐'], ['No distractions now', '🚀'],
 ];
 
 function getGreeting(name: string): string {
@@ -58,21 +65,46 @@ function getGreeting(name: string): string {
 }
 
 const QUOTES = [
-  "Every page you read today is one less thing to worry about tomorrow.",
-  "Consistency beats cramming. Show up, even on hard days.",
-  "You don't have to be perfect — you just have to pass. Keep going.",
-  "Small progress is still progress. Trust the process.",
-  "The exam doesn't test how smart you are. It tests how prepared you are.",
-  "One topic at a time. One session at a time. One day at a time.",
-  "Your future self will thank you for studying today.",
-  "Discipline is choosing what you want most over what you want now.",
-  "Review, repeat, retain. The formula works — stick to it.",
-  "Hard days in review are easier than regret after the exam.",
-  "You've already started. That's the hardest part.",
-  "Every review session is a deposit into your exam-day confidence.",
-  "Mastery is just consistency compounded over time.",
-  "The board exam is a marathon, not a sprint. Pace yourself.",
-  "Today's effort is tomorrow's edge.",
+  "Consistency > cramming.",
+  "Progress over perfection.",
+  "Show up, even when it’s hard.",
+  "Small wins compound.",
+  "Prepare now, relax later.",
+  "One topic at a time.",
+  "Future you is watching.",
+  "Discipline beats motivation.",
+  "Repeat until it sticks.",
+  "Hard now, easy later.",
+  "You started—keep going.",
+  "Confidence is built, not wished.",
+  "Consistency creates mastery.",
+  "It’s a marathon—pace it.",
+  "Today’s work = tomorrow’s edge.",
+  "Do it tired, not never.",
+  "Less thinking, more doing.",
+  "Stay steady, not perfect.",
+  "Focus beats intensity.",
+  "Keep the streak alive.",
+  "You’re closer than you think.",
+  "Done is better than perfect.",
+  "Make it count today.",
+  "Stack your effort daily.",
+  "Trust the process.",
+  "No shortcuts, just reps.",
+  "Clarity comes from action.",
+  "Win the next hour.",
+  "Stay in the work.",
+  "Pressure builds strength.",
+  "Effort compounds quietly.",
+  "Be consistent, not extreme.",
+  "Lock in, zone out.",
+  "Your pace, your progress.",
+  "Every rep matters.",
+  "Discomfort means growth.",
+  "Stay boring, stay consistent.",
+  "Focus now, freedom later.",
+  "You’re building momentum.",
+  "One more push.",
 ];
 
 
