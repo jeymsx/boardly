@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   BookOpen, GraduationCap, FlaskConical, TrendingUp,
   CalendarDays, CheckCircle2, Clock, ChevronRight,
-  Plus, BookMarked, RotateCcw, Bookmark, Star, Trash2, ExternalLink, Link2,
+  Plus, BookMarked, RotateCcw, Bookmark, Star, Trash2, ExternalLink, Link2, Pencil,
 } from 'lucide-react';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSessionsStore } from '../store/useSessionsStore';
@@ -19,7 +19,7 @@ import { upcomingEvents, formatDay, isToday, daysUntil, todayISO } from '../util
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { ActivityPage } from './ActivityPage';
 import { COLOR_MAP } from '../types';
-import type { AttendanceStatus, Session, CalendarEvent } from '../types';
+import type { AttendanceStatus, Session, CalendarEvent, Bookmark as BookmarkItem } from '../types';
 
 // ─── Greeting helpers ─────────────────────────────────────────────────────────
 
@@ -260,6 +260,83 @@ const AddBookmarkModal: React.FC<{ open: boolean; onClose: () => void }> = ({ op
   );
 };
 
+// ─── Bookmark Edit Modal ──────────────────────────────────────────────────────
+
+const EditBookmarkModal: React.FC<{
+  bookmark: BookmarkItem | null;
+  onClose: () => void;
+}> = ({ bookmark, onClose }) => {
+  const { updateBookmark } = useBookmarksStore();
+  const { addToast }       = useToastStore();
+  const [title, setTitle]  = useState('');
+  const [url,   setUrl]    = useState('');
+  const [icon,  setIcon]   = useState('');
+
+  React.useEffect(() => {
+    if (bookmark) { setTitle(bookmark.title); setUrl(bookmark.url); setIcon(bookmark.icon ?? ''); }
+  }, [bookmark]);
+
+  const handleSave = () => {
+    if (!bookmark) return;
+    if (!title.trim() || !url.trim()) { addToast('Title and URL are required', 'error'); return; }
+    let finalUrl = url.trim();
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) finalUrl = 'https://' + finalUrl;
+    updateBookmark(bookmark.id, { title: title.trim(), url: finalUrl, icon: icon.trim() || undefined });
+    addToast('Bookmark updated');
+    onClose();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); }
+  };
+
+  const inputCls = `w-full bg-slate-50 dark:bg-ink-900/80 border border-slate-200 dark:border-ink-600/60
+    rounded-xl px-3.5 py-2.5 text-sm font-body text-slate-900 dark:text-slate-100
+    placeholder-slate-400 dark:placeholder-slate-600
+    focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all`;
+
+  return (
+    <Modal open={!!bookmark} onClose={onClose} title="Edit Bookmark">
+      <div className="flex flex-col gap-4" onKeyDown={handleKeyDown}>
+        <div>
+          <label className="text-xs font-body font-medium text-slate-600 dark:text-slate-400 mb-1.5 block">
+            Title <span className="text-rose-400">*</span>
+          </label>
+          <input autoFocus type="text" value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="e.g. PSME Reviewer" className={inputCls} />
+        </div>
+        <div>
+          <label className="text-xs font-body font-medium text-slate-600 dark:text-slate-400 mb-1.5 block">
+            URL <span className="text-rose-400">*</span>
+          </label>
+          <input type="text" value={url} onChange={e => setUrl(e.target.value)}
+            placeholder="https://..." className={inputCls} />
+        </div>
+        <div>
+          <label className="text-xs font-body font-medium text-slate-600 dark:text-slate-400 mb-1.5 block">
+            Emoji Icon (optional)
+          </label>
+          <input type="text" value={icon} onChange={e => setIcon(e.target.value)}
+            placeholder="e.g. 📚 🔗 📝" className={inputCls} />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-ink-600/60
+              text-sm font-body text-slate-600 dark:text-slate-400
+              hover:bg-slate-50 dark:hover:bg-ink-700/40 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={!title.trim() || !url.trim()}
+            className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40
+              text-sm font-body font-medium text-white transition-colors active:scale-[0.98]">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export const Dashboard: React.FC = () => {
@@ -271,7 +348,38 @@ export const Dashboard: React.FC = () => {
   const { navigate } = useNavStore();
   const { bookmarks, togglePin, deleteBookmark } = useBookmarksStore();
 
-  const overall = overallProgress(subjects, topics, sessions, tests, settings.targetPassingScore);
+  const overall = useMemo(
+    () => overallProgress(subjects, topics, sessions, tests, settings.targetPassingScore),
+    [subjects, topics, sessions, tests, settings.targetPassingScore]
+  );
+
+  const weekDelta = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    const iso = cutoff.toISOString();
+    const prevTopics   = topics.map(t => ({
+      ...t,
+      reads: t.reads.map(r =>
+        r.status === 'done' && r.completedAt && r.completedAt > iso
+          ? { ...r, status: 'in-progress' as const, completedAt: undefined }
+          : r
+      ),
+    }));
+    const prevSessions = sessions.map(s => ({
+      ...s,
+      reviews: s.reviews.map(r =>
+        r.status === 'done' && r.completedAt && r.completedAt > iso
+          ? { ...r, status: 'pending' as const, completedAt: undefined }
+          : r
+      ),
+    }));
+    const prevTests = tests.map(t => ({
+      ...t, scores: t.scores.filter(sc => sc.date <= iso),
+    }));
+    const prev = overallProgress(subjects, prevTopics, prevSessions, prevTests, settings.targetPassingScore);
+    return pctNum(overall) - pctNum(prev);
+  }, [subjects, topics, sessions, tests, overall, settings.targetPassingScore]);
+
   const { upcomingSessions, upcomingReviews } = upcomingEvents(sessions, 7);
 
   const greeting = React.useMemo(() => getGreeting(settings.userName ?? ''), [settings.userName]);
@@ -365,6 +473,7 @@ export const Dashboard: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<WeekDayInfo | null>(null);
   const [showActivity, setShowActivity] = useState(false);
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
+  const [editingBookmark, setEditingBookmark] = useState<BookmarkItem | null>(null);
 
   const sortedBookmarks = useMemo(() =>
     [...bookmarks].sort((a, b) => {
@@ -414,6 +523,16 @@ export const Dashboard: React.FC = () => {
     return items.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 50);
   }, [subjects, topics, sessions, tests]);
 
+  const subjectProgressItems = useMemo(() =>
+    subjects.map(s => ({
+      subject: s,
+      colors: COLOR_MAP[s.color],
+      prog: subjectProgress(s, topics),
+      tCount: topics.filter(t => t.subjectId === s.id).length,
+    })),
+    [subjects, topics]
+  );
+
   if (showActivity) {
     return <ActivityPage onBack={() => setShowActivity(false)} />;
   }
@@ -432,7 +551,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Hero progress + Countdown — side by side when countdown exists */}
       <div className={`mb-5 ${examDates.length > 0 ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}`}>
-        <div className="rounded-2xl p-5 relative overflow-hidden
+        <div className="rounded-2xl p-5 relative overflow-hidden flex flex-col justify-center
           bg-gradient-to-br from-emerald-600 to-emerald-700 dark:from-ink-800 dark:to-ink-900
           border border-emerald-500/30 dark:border-emerald-500/20"
         >
@@ -453,9 +572,16 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <ProgressBar value={overall} size="lg" color="jade" />
-            <p className="text-xs text-white/60 dark:text-slate-500 font-body mt-2">
-              {getProgressMessage(overall)}
-            </p>
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-white/60 dark:text-slate-500 font-body">
+                {getProgressMessage(overall)}
+              </p>
+              {weekDelta !== 0 && (
+                <p className="text-[11px] font-mono text-white/50 dark:text-slate-600 shrink-0">
+                  {weekDelta > 0 ? `↑ +${weekDelta}%` : `↓ ${weekDelta}%`} this week
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -592,6 +718,11 @@ export const Dashboard: React.FC = () => {
                       text-slate-300 dark:text-slate-700 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
                     <ExternalLink size={11} />
                   </a>
+                  <button onClick={() => setEditingBookmark(bm)}
+                    className="w-6 h-6 rounded flex items-center justify-center
+                      text-slate-300 dark:text-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                    <Pencil size={11} />
+                  </button>
                   <button onClick={() => togglePin(bm.id)}
                     className={`w-6 h-6 rounded flex items-center justify-center transition-colors
                       ${bm.pinned
@@ -636,28 +767,23 @@ export const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="px-4 py-3 flex flex-col gap-3">
-              {subjects.map(subject => {
-                const colors = COLOR_MAP[subject.color];
-                const prog   = subjectProgress(subject, topics);
-                const tCount = topics.filter(t => t.subjectId === subject.id).length;
-                return (
-                  <div key={subject.id}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                        <span className="text-sm font-body font-medium text-slate-700 dark:text-slate-300 truncate max-w-[140px]">
-                          {subject.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs font-mono">
-                        <span className="text-slate-400 dark:text-slate-600">{tCount}T</span>
-                        <span className={colors.text}>{pctNum(prog)}%</span>
-                      </div>
+              {subjectProgressItems.map(({ subject, colors, prog, tCount }) => (
+                <div key={subject.id}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                      <span className="text-sm font-body font-medium text-slate-700 dark:text-slate-300 truncate max-w-[140px]">
+                        {subject.name}
+                      </span>
                     </div>
-                    <ProgressBar value={prog} size="xs" gradient />
+                    <div className="flex items-center gap-2 text-xs font-mono">
+                      <span className="text-slate-400 dark:text-slate-600">{tCount}T</span>
+                      <span className={colors.text}>{pctNum(prog)}%</span>
+                    </div>
                   </div>
-                );
-              })}
+                  <ProgressBar value={prog} size="xs" gradient />
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -929,6 +1055,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <AddBookmarkModal open={addBookmarkOpen} onClose={() => setAddBookmarkOpen(false)} />
+      <EditBookmarkModal bookmark={editingBookmark} onClose={() => setEditingBookmark(null)} />
 
       {/* Day detail modal */}
       {selectedDay && (

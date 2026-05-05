@@ -5,7 +5,6 @@ interface Props {
   size?: 'xs' | 'sm' | 'md' | 'lg';
   color?: 'emerald' | 'jade' | 'sky' | 'rose' | 'violet' | 'orange' | 'teal' | 'pink';
   showLabel?: boolean;
-  animate?: boolean;
   gradient?: boolean;
   className?: string;
 }
@@ -25,9 +24,9 @@ const TRACK_COLOR: Record<string, string> = {
   pink:    'bg-pink-400',
 };
 
-export const ProgressBar: React.FC<Props> = ({
+export const ProgressBar = React.memo<Props>(({
   value, size = 'sm', color = 'emerald',
-  showLabel = false, animate = true, gradient = false, className = '',
+  showLabel = false, gradient = false, className = '',
 }) => {
   const pct = Math.min(Math.max(value, 0), 1) * 100;
   const h   = SIZE_H[size];
@@ -41,7 +40,7 @@ export const ProgressBar: React.FC<Props> = ({
           <div className="absolute inset-0 bg-gradient-to-r from-rose-500 via-orange-400 to-emerald-500 rounded-full" />
           {/* Mask covering right portion to reveal only pct% */}
           <div
-            className="absolute top-0 bottom-0 right-0 bg-slate-200 dark:bg-ink-700 rounded-r-full transition-all duration-700 ease-out"
+            className="absolute top-0 bottom-0 right-0 bg-slate-200 dark:bg-ink-700 rounded-r-full transition-[left] duration-700 ease-out"
             style={{ left: `${pct}%` }}
           />
         </div>
@@ -58,7 +57,7 @@ export const ProgressBar: React.FC<Props> = ({
     <div className={`flex items-center gap-2 ${className}`}>
       <div className={`flex-1 bg-slate-200 dark:bg-ink-700 rounded-full overflow-hidden ${h}`}>
         <div
-          className={`${h} ${fg} rounded-full transition-all duration-700 ease-out ${animate ? 'animate-progress' : ''}`}
+          className={`${h} ${fg} rounded-full transition-[width] duration-700 ease-out`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -69,4 +68,4 @@ export const ProgressBar: React.FC<Props> = ({
       )}
     </div>
   );
-};
+});

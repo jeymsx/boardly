@@ -33,7 +33,7 @@ const timers: Partial<Record<string, ReturnType<typeof setTimeout>>> = {};
 
 function schedule(key: string, fn: () => void) {
   clearTimeout(timers[key]);
-  timers[key] = setTimeout(fn, DEBOUNCE_MS);
+  timers[key] = setTimeout(() => { if (_syncEnabled) fn(); }, DEBOUNCE_MS);
 }
 
 // ─── Retry ────────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ async function replaceTable(
     if (ids.length > 0) {
       const { error } = await supabase.from(table).delete()
         .eq('user_id', userId)
-        .not('id', 'in', `(${ids.join(',')})`);
+        .not('id', 'in', `(${ids.map(id => `'${id}'`).join(',')})`);
       if (error) throw error;
     } else {
       const { error } = await supabase.from(table).delete().eq('user_id', userId);

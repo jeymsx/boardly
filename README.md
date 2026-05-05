@@ -1,73 +1,33 @@
-# React + TypeScript + Vite
+# Boardly
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Boardly is a personal board exam review tracker designed to help you stay organized, consistent, and on top of your progress as you prepare for your licensure exam.
 
-Currently, two official plugins are available:
+## What it does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Board exam prep is a long game. Boardly gives you one place to track everything — what you've read, which lectures you've attended, how your practice tests are going, and how much time you have left before exam day.
 
-## React Compiler
+### Subjects & Topics
+Add your review subjects and break them down into topics. For each topic, set how many times you plan to read it and track each read as you go. Topics show reading progress at a glance, and subjects roll that up into an overall subject progress bar.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Lecture Sessions
+Log your lecture sessions by date. Mark attendance, track spaced-repetition review schedules (so you know exactly which sessions need a follow-up review and when), and log your weekly test scores per session. Sessions can be tagged and linked to a subject.
 
-## Expanding the ESLint configuration
+### Mastery Tests
+Track your practice exam and mock board scores over time. See your highest score, latest score, and whether you're hitting your target passing score. Drag and drop to reorder tests, group them by tags, and open any test to view your full score history.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Dashboard
+Your home base. See your overall progress across subjects, sessions, and tests — with a week-over-week delta so you know if you're actually moving forward. The dashboard also shows upcoming sessions and reviews for the next 7 days, recent test results, a weekly calendar, quick-access bookmarks, and an activity feed of everything you've done.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Calendar
+A full month view of all your sessions, review due dates, exams, and custom events.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Countdown
+Set your board exam date(s) in Settings and see a live countdown on the dashboard — Days left, right in front of you.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Works offline, syncs across devices
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Boardly saves everything locally in your browser. No account needed. If you create an account, your data syncs to the cloud so you can access it from any device.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Built for Filipino licensure examinees. 🇵🇭

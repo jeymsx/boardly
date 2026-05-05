@@ -14,13 +14,15 @@ export const Modal: React.FC<Props> = ({
   open, onClose, title, children, maxWidth = 'max-w-md', headerActions,
 }) => {
   const mouseDownOnBackdrop = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

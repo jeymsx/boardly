@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Plus, GraduationCap, Search, SlidersHorizontal, X, Tag, Pencil, Trash2, LayoutGrid, List, ArrowUpDown } from 'lucide-react';
 import { useSessionsStore } from '../store/useSessionsStore';
 import { useSubjectsStore } from '../store/useSubjectsStore';
@@ -90,7 +90,7 @@ const SessionModal: React.FC<SessionModalProps> = ({
       setNewTagInput('');
     }
     prevOpen.current = open;
-  }, [open, initial, defaultReviews, subjects]);
+  }, [open, initial]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleTag = (id: string) => {
     setSelectedTags(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
@@ -445,9 +445,11 @@ const FilterModal: React.FC<FilterModalProps> = ({ open, filters, subjects, onCh
   const { tags: allTags } = useTagsStore();
   const [local, setLocal] = useState<ActiveFilters>(filters);
 
+  const prevOpenFilter = useRef(false);
   React.useEffect(() => {
-    if (open) setLocal(filters);
-  }, [open, filters]);
+    if (open && !prevOpenFilter.current) setLocal(filters);
+    prevOpenFilter.current = open;
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSubject = (id: string) => {
     setLocal(prev => ({
@@ -557,7 +559,7 @@ export const Sessions: React.FC = () => {
   const [modal,       setModal]       = useState(false);
   const [editing,     setEditing]     = useState<Session | null>(null);
   const [delModal,    setDelModal]    = useState(false);
-  const [delTarget,   setDelTarget]   = useState<Session | null>(null);
+  const [delTargetId, setDelTargetId] = useState<string | null>(null);
   const [tagMgr,      setTagMgr]      = useState(false);
   const [status,      setStatus]      = useState<StatusFilter>('all');
   const [search,      setSearch]      = useState('');
@@ -571,6 +573,11 @@ export const Sessions: React.FC = () => {
   const liveViewingSession = useMemo(
     () => viewingSession ? (sessions.find(s => s.id === viewingSession.id) ?? null) : null,
     [viewingSession, sessions],
+  );
+
+  const delTargetLabel = useMemo(
+    () => delTargetId ? (sessions.find(s => s.id === delTargetId)?.topicLabel ?? '') : '',
+    [delTargetId, sessions],
   );
 
   const today = new Date().toISOString().slice(0, 10);
@@ -645,14 +652,14 @@ export const Sessions: React.FC = () => {
     setEditing(null);
   };
 
-  const openEdit = (s: Session) => { setEditing(s); setModal(true); };
+  const openEdit = useCallback((s: Session) => { setEditing(s); setModal(true); }, []);
 
-  const requestDelete = (s: Session) => { setDelTarget(s); setDelModal(true); };
+  const requestDelete = useCallback((id: string) => { setDelTargetId(id); setDelModal(true); }, []);
 
   const confirmDelete = () => {
-    if (delTarget) { deleteSession(delTarget.id); addToast('Session deleted', 'info'); }
+    if (delTargetId) { deleteSession(delTargetId); addToast('Session deleted', 'info'); }
     setDelModal(false);
-    setDelTarget(null);
+    setDelTargetId(null);
   };
 
   return (
@@ -834,7 +841,7 @@ export const Sessions: React.FC = () => {
               key={session.id}
               session={session}
               onEdit={openEdit}
-              onDelete={() => requestDelete(session)}
+              onDelete={requestDelete}
             />
           ))}
         </div>
@@ -922,7 +929,7 @@ export const Sessions: React.FC = () => {
                       <Pencil size={13} />
                     </button>
                     <button
-                      onClick={e => { e.stopPropagation(); requestDelete(session); }}
+                      onClick={e => { e.stopPropagation(); requestDelete(session.id); }}
                       className="w-7 h-7 rounded-lg flex items-center justify-center
                         text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400
                         hover:bg-rose-50 dark:hover:bg-rose-500/15 transition-all"
@@ -947,7 +954,7 @@ export const Sessions: React.FC = () => {
       />
       <DeleteModal
         open={delModal}
-        label={delTarget?.topicLabel ?? ''}
+        label={delTargetLabel}
         onClose={() => setDelModal(false)}
         onConfirm={confirmDelete}
       />
@@ -968,7 +975,7 @@ export const Sessions: React.FC = () => {
           open={!!viewingSession}
           onClose={() => setViewingSession(null)}
           onEdit={s => { setViewingSession(null); openEdit(s); }}
-          onDelete={id => { setViewingSession(null); requestDelete(sessions.find(s => s.id === id)!); }}
+          onDelete={id => { setViewingSession(null); requestDelete(id); }}
         />
       )}
     </div>

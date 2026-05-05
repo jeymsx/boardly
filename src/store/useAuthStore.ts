@@ -90,30 +90,43 @@ function pushLocalState() {
   scheduleBookmarksSync(bookmarks);
 }
 
+let _hydrating = false;
+
 async function handleSignIn(userId: string, set: (p: Partial<AuthStore>) => void) {
+  if (_hydrating) return;
+  _hydrating = true;
   set({ syncing: true });
   setCurrentUser(userId);
   disableSync();
 
   const remote = await pullAll(userId);
-  const hasData = remote && (
+
+  if (remote === null) {
+    // Network error — keep local data, don't push (remote state unknown)
+    enableSync();
+    set({ syncing: false });
+    _hydrating = false;
+    return;
+  }
+
+  const hasData =
     remote.subjects.length > 0 ||
     remote.sessions.length > 0 ||
-    remote.tests.length > 0
-  );
+    remote.tests.length > 0;
 
   if (hasData) {
-    hydrateStores(remote!);
+    hydrateStores(remote);
   }
 
   enableSync();
 
   if (!hasData) {
-    // New account — push whatever the user already has locally.
+    // Confirmed new account — push whatever the user already has locally.
     pushLocalState();
   }
 
   set({ syncing: false });
+  _hydrating = false;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({

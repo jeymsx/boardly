@@ -360,7 +360,7 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
-export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
+export const SessionCard = React.memo<Props>(({ session, onEdit, onDelete }) => {
   const { subjects } = useSubjectsStore();
   const { cycleAttendance } = useSessionsStore();
   const { tags: allTags } = useTagsStore();
@@ -368,7 +368,7 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
 
   const subject      = (session.subjectEnabled !== false) ? subjects.find(s => s.id === session.subjectId) : undefined;
   const colors       = subject ? COLOR_MAP[subject.color] : COLOR_MAP.amber;
-  const progress     = sessionProgress(session);
+  const progress     = React.useMemo(() => sessionProgress(session), [session]);
   const today        = isToday(session.date);
   const past         = isPast(session.date);
   const resolvedTags = (session.tags ?? []).map(id => allTags.find(t => t.id === id)).filter(Boolean) as { id: string; name: string }[];
@@ -377,7 +377,7 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
     <>
       <div
         className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50 rounded-xl
-          transition-all hover:shadow-card-hover animate-fade-in overflow-hidden shadow-card dark:shadow-none cursor-pointer"
+          transition-all hover:shadow-card-hover hover:-translate-y-0.5 animate-fade-in overflow-hidden shadow-card dark:shadow-none cursor-pointer"
         onClick={() => setDetailOpen(true)}
       >
         <div className="relative flex min-h-[100px]">
@@ -492,4 +492,4 @@ export const SessionCard: React.FC<Props> = ({ session, onEdit, onDelete }) => {
       />
     </>
   );
-};
+});

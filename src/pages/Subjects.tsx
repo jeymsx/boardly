@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Plus, BookOpen, Search, Pencil, Trash2, ChevronLeft } from 'lucide-react';
 import { useSubjectsStore } from '../store/useSubjectsStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -132,12 +132,12 @@ const DeleteModal: React.FC<{
 
 // ─── Subject List Item ────────────────────────────────────────────────────────
 
-const SubjectItem: React.FC<{
+const SubjectItem = React.memo<{
   subject: Subject;
   topics: Topic[];
   active: boolean;
   onClick: () => void;
-}> = ({ subject, topics, active, onClick }) => {
+}>(({ subject, topics, active, onClick }) => {
   const colors = COLOR_MAP[subject.color];
   const subjectTopics = topics.filter(t => t.subjectId === subject.id);
   const prog = subjectProgress(subject, topics);
@@ -162,7 +162,7 @@ const SubjectItem: React.FC<{
       </div>
     </button>
   );
-};
+});
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -211,7 +211,7 @@ export const Subjects: React.FC = () => {
   const openEditSubject = (s: Subject) => { setEditingSubject(s); setSubjectModal(true); };
 
   const openAddTopic  = (subjectId: string) => { setTopicSubjectId(subjectId); setEditingTopic(null); setTopicModal(true); };
-  const openEditTopic = (t: Topic)          => { setTopicSubjectId(t.subjectId); setEditingTopic(t); setTopicModal(true); };
+  const openEditTopic = useCallback((t: Topic) => { setTopicSubjectId(t.subjectId); setEditingTopic(t); setTopicModal(true); }, []);
 
   const handleSaveSubject = ({ name, color }: SubjectForm) => {
     if (editingSubject) { updateSubject(editingSubject.id, { name, color }); addToast('Subject updated'); }
@@ -229,10 +229,15 @@ export const Subjects: React.FC = () => {
     setTopicModal(false);
   };
 
-  const requestDelete = (type: 'subject' | 'topic', id: string, label: string) => {
+  const requestDelete = useCallback((type: 'subject' | 'topic', id: string, label: string) => {
     setDeleteTarget({ type, id, label });
     setDeleteModal(true);
-  };
+  }, []);
+
+  const handleDeleteTopic = useCallback((id: string) => {
+    const t = topics.find(t => t.id === id);
+    if (t) requestDelete('topic', id, t.name);
+  }, [topics, requestDelete]);
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
@@ -280,7 +285,10 @@ export const Subjects: React.FC = () => {
   }
 
   const subjectTopicsCount = topics.filter(t => t.subjectId === selectedId).length;
-  const subjectProg = selectedSubject ? subjectProgress(selectedSubject, topics) : 0;
+  const subjectProg = useMemo(
+    () => selectedSubject ? subjectProgress(selectedSubject, topics) : 0,
+    [selectedSubject, topics]
+  );
 
   return (
     <div className="flex h-full animate-fade-in">
@@ -431,10 +439,7 @@ export const Subjects: React.FC = () => {
                       topic={topic}
                       subject={selectedSubject}
                       onEdit={openEditTopic}
-                      onDelete={id => {
-                        const t = topics.find(t => t.id === id);
-                        if (t) requestDelete('topic', id, t.name);
-                      }}
+                      onDelete={handleDeleteTopic}
                     />
                   ))}
                 </div>

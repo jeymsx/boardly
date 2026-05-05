@@ -57,12 +57,21 @@ const ScoreEditModal: React.FC<ScoreEditModalProps> = ({ score, testId, open, on
         <div className="flex items-end gap-3">
           <div className="flex-1">
             <label className="text-xs font-body text-slate-500 dark:text-slate-400 mb-1.5 block">Score</label>
-            <input type="number" value={editVal} onChange={e => setEditVal(e.target.value)} autoFocus className={inputCls} />
+            <input type="number" value={editVal} onChange={e => {
+              const s = parseFloat(e.target.value);
+              const m = parseFloat(editMax);
+              setEditVal(!isNaN(s) && !isNaN(m) && m > 0 && s > m ? String(m) : e.target.value);
+            }} autoFocus className={inputCls} />
           </div>
           <span className="text-slate-400 font-mono pb-2.5">/</span>
           <div className="flex-1">
             <label className="text-xs font-body text-slate-500 dark:text-slate-400 mb-1.5 block">Max Score</label>
-            <input type="number" value={editMax} onChange={e => setEditMax(e.target.value)} className={inputCls} />
+            <input type="number" value={editMax} onChange={e => {
+              setEditMax(e.target.value);
+              const m = parseFloat(e.target.value);
+              const s = parseFloat(editVal);
+              if (!isNaN(s) && !isNaN(m) && m > 0 && s > m) setEditVal(String(m));
+            }} className={inputCls} />
           </div>
         </div>
         <div>
@@ -408,7 +417,11 @@ const TestDetailModal: React.FC<TestDetailModalProps> = ({
                 type="number"
                 placeholder="Score"
                 value={score}
-                onChange={e => setScore(e.target.value)}
+                onChange={e => {
+                  const s = parseFloat(e.target.value);
+                  const m = parseFloat(maxScore);
+                  setScore(!isNaN(s) && !isNaN(m) && m > 0 && s > m ? String(m) : e.target.value);
+                }}
                 className="w-full bg-slate-50 dark:bg-ink-900/80 border border-slate-200 dark:border-ink-600/60
                   rounded-xl px-3 py-2.5 text-sm font-body text-slate-900 dark:text-slate-100
                   placeholder-slate-400 dark:placeholder-slate-600
@@ -422,7 +435,12 @@ const TestDetailModal: React.FC<TestDetailModalProps> = ({
                 type="number"
                 placeholder="100"
                 value={maxScore}
-                onChange={e => setMaxScore(e.target.value)}
+                onChange={e => {
+                  setMaxScore(e.target.value);
+                  const m = parseFloat(e.target.value);
+                  const s = parseFloat(score);
+                  if (!isNaN(s) && !isNaN(m) && m > 0 && s > m) setScore(String(m));
+                }}
                 className="w-full bg-slate-50 dark:bg-ink-900/80 border border-slate-200 dark:border-ink-600/60
                   rounded-xl px-3 py-2.5 text-sm font-body text-slate-900 dark:text-slate-100
                   placeholder-slate-400 dark:placeholder-slate-600
@@ -505,7 +523,7 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
-export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
+export const TestCard = React.memo<Props>(({ test, onEdit, onDelete }) => {
   const { subjects } = useSubjectsStore();
   const { tags: allTags } = useTestTagsStore();
   const [detailOpen, setDetailOpen] = useState(false);
@@ -528,7 +546,7 @@ export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
     <>
       <div
         className="bg-white dark:bg-ink-800/60 border border-slate-200 dark:border-ink-700/50 rounded-xl
-          transition-all hover:shadow-card-hover animate-fade-in overflow-hidden shadow-card dark:shadow-none cursor-pointer"
+          transition-all hover:shadow-card-hover hover:-translate-y-0.5 animate-fade-in overflow-hidden shadow-card dark:shadow-none cursor-pointer"
         onClick={() => setDetailOpen(true)}
       >
         <div className="flex">
@@ -538,10 +556,11 @@ export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
           <div className="flex-1 px-4 py-3.5">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="flex items-center gap-2 mb-0.5 min-w-0">
                   {passed && <Trophy size={13} className="text-emerald-500 dark:text-emerald-400 shrink-0" />}
-                  <span className="font-display font-semibold text-sm leading-tight truncate text-slate-800 dark:text-slate-200">
-                    {test.name}
+                  <span className="font-display font-semibold text-sm leading-tight truncate min-w-0 text-slate-800 dark:text-slate-200">
+                    <span className="sm:hidden">{test.name.length > 25 ? test.name.slice(0, 25) + '…' : test.name}</span>
+                    <span className="hidden sm:inline">{test.name}</span>
                   </span>
                   {test.link && (
                     <a href={test.link} target="_blank" rel="noopener noreferrer"
@@ -628,4 +647,4 @@ export const TestCard: React.FC<Props> = ({ test, onEdit, onDelete }) => {
       />
     </>
   );
-};
+});
